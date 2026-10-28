@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#101710" />
+  <meta name="description" content="BEKIUZ BUILD — uyingizni qurishdan oldin loyihalang, 3D ko‘ring va qurilish xarajatlarini taxminiy hisoblang." />
+  <title>BEKIUZ BUILD — Uyingizni qurishdan oldin ko‘ring</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.module.js"
+      }
+    }
+  </script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <div class="page-noise" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="BEKIUZ BUILD bosh sahifa">
+      <span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 15.3 16 5l12 10.3v12.2H4z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M11 27V17h10v10M2.8 15.7 16 4l13.2 11.7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/><path d="M16 17v10" stroke="currentColor" stroke-width="2.2"/></svg></span>
+      <span class="brand-word">BEKIUZ <b>BUILD</b><small>HOME DESIGN STUDIO</small></span>
+    </a>
+    <nav class="main-nav" aria-label="Asosiy navigatsiya">
+      <a href="#imkoniyatlar">Imkoniyatlar</a>
+      <a href="#planner">Loyihalash</a>
+      <a href="#hisob">Smeta</a>
+    </nav>
+    <a class="header-cta" href="#planner">Loyihani boshlash <span>↗</span></a>
+    <button class="mobile-menu" id="mobileMenu" aria-label="Menyuni ochish">☰</button>
+  </header>
+
+  <main id="top">
+    <section class="hero section-wrap">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="live-dot"></span> UY QURISHNING YANGI USULI</div>
+        <h1>Avval ko‘ring.<br /><em>Keyin quring.</em></h1>
+        <p class="hero-lead">Yer o‘lchamingizni kiriting. Uyingiz rejasini tuzing, 3D ko‘rinishini ko‘ring va materiallar hamda xarajatlarni oldindan taxmin qiling.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#planner">Bepul loyihalashni boshlash <span>↗</span></a>
+          <a class="text-link" href="#qanday">Qanday ishlaydi <span>↓</span></a>
+        </div>
+        <div class="hero-proof">
+          <div class="proof-icon">⌂</div>
+          <div><strong>Bir joyda — butun loyiha</strong><span>Reja · 3D · Materiallar · Xarajatlar</span></div>
+        </div>
+      </div>
+      <div class="hero-stage">
+        <div class="stage-grid"></div>
+        <div class="stage-label stage-label-top"><span class="stage-pulse"></span> 3D KO‘RINISH <span>01 / PREVIEW</span></div>
+        <div class="hero-house-frame"><canvas id="heroCanvas" aria-label="BEKIUZ BUILD namunaviy uyining uch o‘lchamli ko‘rinishi"></canvas></div>
+        <div class="floating-card dimensions-card"><span class="floating-icon">⌗</span><div><small>LOYIHA MAYDONI</small><strong id="heroArea">140 m²</strong></div><span class="green-dot"></span></div>
+        <div class="floating-card cost-card"><span class="floating-icon">↗</span><div><small>TAXMINIY BYUDJET</small><strong id="heroCost">Hisoblanmoqda...</strong></div></div>
+        <div class="stage-bottom"><span>01</span><span class="stage-line"></span><span>O‘ZGARTIRING · KO‘RING · REJALASHTIRING</span></div>
+      </div>
+      <div class="hero-vertical-note">MADE FOR YOUR NEXT HOME — UZBEKISTAN</div>
+    </section>
+
+    <section class="metrics section-wrap" aria-label="Loyiha bosqichlari">
+      <div class="metric"><span class="metric-index">01</span><div><strong>Yer maydoni</strong><small>O‘lchamlarni kiriting</small></div></div>
+      <div class="metric-divider"></div>
+      <div class="metric"><span class="metric-index">02</span><div><strong>Uy reja va 3D</strong><small>Oldindan tasavvur qiling</small></div></div>
+      <div class="metric-divider"></div>
+      <div class="metric"><span class="metric-index">03</span><div><strong>Materiallar</strong><small>Miqdorlarni ko‘ring</small></div></div>
+      <div class="metric-divider"></div>
+      <div class="metric"><span class="metric-index">04</span><div><strong>Taxminiy smeta</strong><small>Byudjetni rejalashtiring</small></div></div>
+    </section>
+
+    <section class="section-wrap feature-section" id="imkoniyatlar">
+      <div class="section-heading">
+        <div><div class="eyebrow">SIZNING G‘OYANGIZDAN BOSHLANADI</div><h2>Qurishdan oldin<br /><em>hammasini rejalang.</em></h2></div>
+        <p>Murakkab chizmalardan boshlash shart emas. Oddiy o‘lchamlar bilan boshlang va rejangizni asta-sekin aniqlashtiring.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card feature-large"><div class="feature-topline"><span>01 / MA’LUMOT</span><span class="feature-symbol">↗</span></div><div class="feature-illustration plot-illustration"><div class="plot-drawing"><span class="plot-dim plot-dim-top">20 m</span><span class="plot-dim plot-dim-side">30 m</span><div class="plot-inner"><span>YER MAYDONI</span><b>600 m²</b></div></div></div><h3>Maydonni kiriting</h3><p>Yer uzunligi, eni, uy o‘lchami va qavatlar sonini tanlang.</p></article>
+        <article class="feature-card"><div class="feature-topline"><span>02 / LOYIHA</span><span class="feature-symbol">⌂</span></div><div class="feature-illustration plan-illustration"><div class="mini-plan"><i></i><i></i><i></i><i></i><i></i><b>PLAN</b></div></div><h3>Rejani ko‘ring</h3><p>Xonalar soni va joylashuvini dastlabki ko‘rinishda ko‘ring.</p></article>
+        <article class="feature-card"><div class="feature-topline"><span>03 / 3D MODEL</span><span class="feature-symbol">◈</span></div><div class="feature-illustration cube-illustration"><div class="cube"><span></span><i></i><b></b></div></div><h3>3D uy modeli</h3><p>Uyni aylantirib ko‘ring, balandlik va tashqi ko‘rinishni tasavvur qiling.</p></article>
+        <article class="feature-card"><div class="feature-topline"><span>04 / MATERIALLAR</span><span class="feature-symbol">▦</span></div><div class="feature-illustration material-illustration"><div class="material-stack"><i></i><i></i><i></i><span>QURILISH</span></div></div><h3>Material va xarajatlar</h3><p>Beton, devor, tom, elektr va suv tizimlari bo‘yicha dastlabki hisobni oling.</p></article>
+      </div>
+    </section>
+
+    <section class="planner-section" id="planner">
+      <div class="section-wrap">
+        <div class="section-heading planner-heading">
+          <div><div class="eyebrow"><span class="live-dot"></span> INTERAKTIV DEMO</div><h2>Uyingizni <em>loyihalashni</em><br />boshlang.</h2></div>
+          <p>O‘lchamlarni o‘zgartiring — reja, 3D ko‘rinish va taxminiy hisoblar yangilanadi.</p>
+        </div>
+        <div class="planner-app">
+          <aside class="planner-sidebar">
+            <div class="sidebar-head"><div><span class="sidebar-kicker">YANGI LOYIHA</span><h3>Uy parametrlar</h3></div><span class="step-badge">01</span></div>
+            <form id="projectForm">
+              <div class="form-section">
+                <div class="form-section-title"><span class="form-number">01</span><span>Yer maydoni</span><span class="unit-note">metr</span></div>
+                <div class="input-row">
+                  <label>Eni<input id="plotWidth" type="number" min="6" max="100" step="0.5" value="20" inputmode="decimal" /></label>
+                  <label>Uzunligi<input id="plotLength" type="number" min="8" max="200" step="0.5" value="30" inputmode="decimal" /></label>
+                </div>
+                <div class="area-strip"><span>Yer maydoni</span><strong id="plotArea">600 m²</strong></div>
+              </div>
+              <div class="form-section">
+                <div class="form-section-title"><span class="form-number">02</span><span>Uy o‘lchami</span></div>
+                <div class="input-row">
+                  <label>Eni<input id="houseWidth" type="number" min="4" max="30" step="0.5" value="10" inputmode="decimal" /></label>
+                  <label>Uzunligi<input id="houseLength" type="number" min="4" max="40" step="0.5" value="14" inputmode="decimal" /></label>
+                </div>
+                <p class="field-hint">Uy o‘lchamlari yer maydonidan oshmasligi kerak.</p>
+              </div>
+              <div class="form-section">
+                <div class="form-section-title"><span class="form-number">03</span><span>Qavatlar</span></div>
+                <div class="segmented" role="group" aria-label="Qavatlar soni"><button type="button" class="segment active" data-floors="1">1 qavat</button><button type="button" class="segment" data-floors="2">2 qavat</button></div>
+              </div>
+              <div class="form-section">
+                <div class="form-section-title"><span class="form-number">04</span><span>Xonalar</span></div>
+                <div class="room-options" id="roomOptions" role="group" aria-label="Xonalar soni">
+                  <button type="button" data-rooms="2">2</button><button type="button" data-rooms="3" class="active">3</button><button type="button" data-rooms="4">4</button><button type="button" data-rooms="5">5+</button>
+                </div>
+                <p class="field-hint">Xonalar taqsimoti hozircha namunaviy.</p>
+              </div>
+              <div class="form-section last-form-section">
+                <div class="form-section-title"><span class="form-number">05</span><span>Tom turi</span></div>
+                <div class="select-wrap"><select id="roofType" aria-label="Tom turini tanlash"><option value="gable">Ikki nishabli tom</option><option value="flat">Yassi tom</option></select><span>⌄</span></div>
+              </div>
+              <button type="submit" class="btn btn-primary generate-btn">Loyihani yangilash <span>↗</span></button>
+            </form>
+            <div class="sidebar-foot"><span class="lock-icon">◇</span> Demo loyiha — ma’lumotlar shu brauzerda ishlaydi.</div>
+          </aside>
+
+          <div class="planner-main">
+            <div class="workspace-topbar"><div class="workspace-name"><span class="workspace-status"></span><strong>Mening uyim</strong><small>Oxirgi o‘zgarishlar avtomatik aks etadi</small></div><div class="workspace-actions"><button class="icon-btn" id="resetBtn" title="Boshlang‘ich parametrlarni tiklash" aria-label="Boshlang‘ich parametrlarni tiklash">↺</button><button class="icon-btn" id="downloadBtn" title="Hisobotni chop etish yoki PDF saqlash" aria-label="Hisobotni chop etish yoki PDF saqlash">⇩</button></div></div>
+            <div class="preview-tabs" role="tablist" aria-label="Loyiha ko‘rinishi"><button class="preview-tab active" data-view="3d" role="tab" aria-selected="true">◈ <span>3D ko‘rinish</span></button><button class="preview-tab" data-view="plan" role="tab" aria-selected="false">▦ <span>Qavat rejasi</span></button><button class="preview-tab" data-view="materials" role="tab" aria-selected="false">▤ <span>Materiallar</span></button></div>
+            <div class="view-area">
+              <div class="view-panel active" id="view3d">
+                <div class="view-label"><span><i></i> JONLI 3D MODEL</span><span id="modelDimensions">10 × 14 m · 1 qavat</span></div>
+                <div id="modelCanvasWrap"><canvas id="modelCanvas" aria-label="Aylantiriladigan 3D uy modeli"></canvas><div class="model-loading" id="modelLoading"><span class="loader"></span> 3D model yuklanmoqda...</div><div class="model-hint"><span>↔</span> Sichqoncha bilan aylantiring · G‘ildirak bilan yaqinlashtiring</div></div>
+                <div class="model-footer"><span class="model-footer-dot"></span> NAMUNAVIY MODEL <span class="footer-separator">/</span> KONSEPTUAL KO‘RINISH</div>
+              </div>
+              <div class="view-panel" id="viewPlan">
+                <div class="view-label"><span><i></i> QAVAT REJASI</span><span id="planDimensions">140 m²</span></div>
+                <div class="floor-plan-wrap"><svg id="floorPlanSvg" viewBox="0 0 560 420" role="img" aria-label="Uyning namunaviy qavat rejasi"></svg></div>
+                <div class="model-footer"><span class="model-footer-dot"></span> XONALAR JOYLASHUVI — NAMUNAVIY</div>
+              </div>
+              <div class="view-panel" id="viewMaterials">
+                <div class="view-label"><span><i></i> MATERIALLAR VA HISOB</span><span>DEMO NARXLAR</span></div>
+                <div class="material-list" id="materialList"></div>
+                <div class="materials-warning">Narxlar namuna uchun kiritilgan. Mahalliy yetkazib beruvchilar narxlari bilan almashtiring.</div>
+              </div>
+            </div>
+            <div class="summary-strip">
+              <div class="summary-item"><span>Uy maydoni</span><strong id="summaryArea">140 m²</strong><small id="summaryFloors">1 qavat</small></div>
+              <div class="summary-item"><span>Xonalar</span><strong id="summaryRooms">3 ta</strong><small>namunaviy reja</small></div>
+              <div class="summary-item"><span>Tom yuzasi</span><strong id="summaryRoof">168 m²</strong><small>taxminiy</small></div>
+              <div class="summary-item summary-total"><span>Taxminiy materiallar qiymati</span><strong id="summaryCost">—</strong><small>demo narxlar asosida</small></div>
+            </div>
+            <div class="disclaimer"><span>ⓘ</span><p><strong>Muhim:</strong> Bu prototip rejalashtirish uchun taxminiy hisob beradi. Poydevor, beton va armatura o‘lchamlari, elektr hamda suv tizimlari yakuniy qurilish loyihasi emas — ularni mutaxassis tekshirishi shart.</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="how-section section-wrap" id="qanday">
+      <div class="section-heading"><div><div class="eyebrow">SODDA JARAYON</div><h2>4 qadamda <em>aniqroq tasavvur.</em></h2></div><p>BEKIUZ BUILD qurilishdan oldingi rejalashtirishni tushunarli qilish uchun yaratilmoqda.</p></div>
+      <div class="steps-grid">
+        <div class="step-card"><span>01</span><div class="step-icon">⌗</div><h3>Maydonni kiriting</h3><p>Yer va uy o‘lchamlarini belgilang.</p></div>
+        <div class="step-card"><span>02</span><div class="step-icon">▦</div><h3>Rejani tanlang</h3><p>Qavatlar va xona sonini sozlang.</p></div>
+        <div class="step-card"><span>03</span><div class="step-icon">◈</div><h3>3D ko‘rinishni ko‘ring</h3><p>Modelni aylantirib, tashqi shaklni tasavvur qiling.</p></div>
+        <div class="step-card"><span>04</span><div class="step-icon">↗</div><h3>Hisobni oling</h3><p>Material miqdori va demo xarajatlarni ko‘ring.</p></div>
+      </div>
+    </section>
+
+    <section class="cta-section section-wrap">
+      <div class="cta-card"><div><div class="eyebrow">KEYINGI UYINGIZ SHU YERDAN</div><h2>G‘oyangizni <em>loyihaga aylantiring.</em></h2><p>Hozir oddiy parametrlar bilan sinab ko‘ring. Bu — BEKIUZ BUILD’ning dastlabki prototipi.</p></div><a class="btn btn-dark" href="#planner">Loyihalashga qaytish <span>↑</span></a><div class="cta-orbit orbit-one"></div><div class="cta-orbit orbit-two"></div></div>
+    </section>
+  </main>
+
+  <footer class="site-footer section-wrap">
+    <a class="brand footer-brand" href="#top"><span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 15.3 16 5l12 10.3v12.2H4z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M2.8 15.7 16 4l13.2 11.7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span><span class="brand-word">BEKIUZ <b>BUILD</b><small>HOME DESIGN STUDIO</small></span></a>
+    <p>Uyingizni qurishdan oldin ko‘ring.</p>
+    <span class="footer-note">© 2026 BEKIUZ BUILD · MVP CONCEPT</span>
+  </footer>
+</body>
+</html>
