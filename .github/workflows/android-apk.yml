@@ -67,7 +67,11 @@ jobs:
 
       - name: Install Android SDK platform and build tools
         shell: bash
-        run: "$SDKMANAGER" --install "platform-tools" "platforms;android-36" "build-tools;36.0.0"
+        run: |
+          "$SDKMANAGER" --install \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.0.0"
 
       - name: Sync assets to Android
         run: npx cap sync android
