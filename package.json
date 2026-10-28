@@ -1,0 +1,20 @@
+{
+  "name": "bekiuz-build",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "BEKIUZ BUILD — home planning, conceptual 3D preview and demo cost estimates",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "android:add": "cap add android",
+    "android:sync": "npm run build && cap sync android",
+    "android:open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3"
+  }
+}
