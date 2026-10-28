@@ -33,7 +33,7 @@ function calculate() {
     concrete: concrete,
     brick: Math.ceil(wallArea * 52),
     rebar: Math.ceil(concrete * 75),
-    roof: footprint * (state.roofType === "gable" ? 1.18 : 1.05),
+    roof: footprint * (state.roofType === "gable" ? 1.18 : state.roofType === "hip" ? 1.25 : 1.05),
     windows: Math.max(8, wallArea * 0.12),
     wiring: Math.ceil(floorArea * 4),
     pipes: Math.ceil(floorArea * 1.1),
@@ -330,6 +330,130 @@ function activateView(view){
   const map={"3d":"#view3d","plan":"#viewPlan","materials":"#viewMaterials"};$(map[view]).classList.add("active");
   if(view==="3d")window.dispatchEvent(new Event("resize"));
 }
+let latestAiPlan = null;
+
+function setAiStatus(message, kind = "") {
+  const status = $("#aiStatus");
+  if (!status) return;
+  status.textContent = message;
+  status.dataset.state = kind;
+}
+
+function formatRoofName(type) {
+  return type === "hip" ? "To‘rt nishabli tom" : type === "flat" ? "Yassi tom" : "Ikki nishabli tom";
+}
+
+function renderAiPlan(plan) {
+  latestAiPlan = plan;
+  $("#aiSummary").textContent = plan.summary || "Boshlang‘ich tavsiya tayyor.";
+  const list = $("#aiRecommendations");
+  list.replaceChildren();
+  (Array.isArray(plan.recommendations) ? plan.recommendations : []).forEach((recommendation) => {
+    const item = document.createElement("li");
+    item.textContent = recommendation;
+    list.appendChild(item);
+  });
+
+  const settings = plan.proposedSettings || {};
+  const preview = $("#aiSettingsPreview");
+  preview.replaceChildren();
+  const settingsLabels = [
+    Math.round(Number(settings.houseWidth) * 10) / 10 + " × " + (Math.round(Number(settings.houseLength) * 10) / 10) + " m",
+    Math.round(Number(settings.floors)) + " qavat",
+    (Number(settings.rooms) >= 5 ? "5+" : Math.round(Number(settings.rooms))) + " xona",
+    formatRoofName(settings.roofType)
+  ];
+  settingsLabels.forEach((label) => {
+    const pill = document.createElement("span");
+    pill.className = "ai-setting-pill";
+    pill.textContent = label;
+    preview.appendChild(pill);
+  });
+  $("#aiResult").hidden = false;
+}
+
+async function requestAiPlan(event) {
+  event.preventDefault();
+  const prompt = $("#aiPrompt").value.trim();
+  if (!prompt) {
+    setAiStatus("Avval uy talablaringizni yozing.", "error");
+    return;
+  }
+
+  const button = $("#aiSubmit");
+  const label = $("#aiSubmitLabel");
+  button.disabled = true;
+  label.textContent = "Tahlil qilinmoqda…";
+  $("#aiResult").hidden = true;
+  setAiStatus("Uy talablari tahlil qilinyapti. AI taxminiy variantlar tayyorlaydi…", "");
+
+  const project = {
+    plotWidth: Number($("#plotWidth").value),
+    plotLength: Number($("#plotLength").value),
+    houseWidth: Number($("#houseWidth").value),
+    houseLength: Number($("#houseLength").value),
+    floors: state.floors,
+    rooms: state.rooms,
+    roofType: state.roofType
+  };
+
+  try {
+    const endpoint = new URL("./.netlify/functions/ai-plan", window.location.href);
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt, project })
+    });
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const error = new Error("AI_BACKEND_UNAVAILABLE");
+      error.code = "AI_BACKEND_UNAVAILABLE";
+      throw error;
+    }
+    const result = await response.json();
+    if (!response.ok) {
+      const error = new Error(result.error || "AI so‘rovi bajarilmadi.");
+      error.code = result.code || "AI_REQUEST_FAILED";
+      throw error;
+    }
+    if (!result.plan || !result.plan.proposedSettings) {
+      throw new Error("AI javobi kutilgan formatda kelmadi. Yana urinib ko‘ring.");
+    }
+    renderAiPlan(result.plan);
+    setAiStatus("Tavsiya tayyor. Parametrlarni qo‘llashdan oldin o‘zingiz ko‘rib chiqing.", "success");
+  } catch (error) {
+    const code = error && error.code ? error.code : "";
+    let message = "AI xizmatiga ulanishda xatolik bo‘ldi. Birozdan keyin qayta urinib ko‘ring.";
+    if (code === "AI_NOT_CONFIGURED") {
+      message = "Gemini kaliti hali sozlanmagan. Netlify saytining Environment variables bo‘limida GEMINI_API_KEY yarating va saytni qayta deploy qiling.";
+    } else if (code === "AI_BACKEND_UNAVAILABLE" || code === "AI_NETWORK_ERROR" || (error && error instanceof TypeError)) {
+      message = "AI backend hali ulanmagan. Bu funksiya Netlify’da ishlaydi; GitHub Pages faqat statik saytni ko‘rsatadi. Repozitoriyani Netlify’ga ulab, GEMINI_API_KEY ni server environment variable sifatida sozlang.";
+    } else if (error && error.message) {
+      message = error.message;
+    }
+    setAiStatus(message, "error");
+  } finally {
+    button.disabled = false;
+    label.textContent = "AI tavsiyasini olish";
+  }
+}
+
+function applyAiPlan() {
+  if (!latestAiPlan || !latestAiPlan.proposedSettings) return;
+  const settings = latestAiPlan.proposedSettings;
+  state.floors = clamp(settings.floors, 1, 2);
+  state.rooms = clamp(settings.rooms, 2, 5);
+  state.roofType = ["gable", "hip", "flat"].includes(settings.roofType) ? settings.roofType : "gable";
+  $("#houseWidth").value = clamp(settings.houseWidth, 4, 30);
+  $("#houseLength").value = clamp(settings.houseLength, 4, 40);
+  $("#roofType").value = state.roofType;
+  $(".segment").forEach((button) => button.classList.toggle("active", Number(button.dataset.floors) === state.floors));
+  $("#roomOptions button").forEach((button) => button.classList.toggle("active", Number(button.dataset.rooms) === state.rooms));
+  updateAll(true);
+  setAiStatus("AI taklif qilgan parametrlar loyihaga qo‘llandi. Endi rejani tekshiring va o‘lchamlarni kerak bo‘lsa sozlang.", "success");
+  $("#planner").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function setupEvents(){
   ["plotWidth","plotLength","houseWidth","houseLength"].forEach((id)=>{
     $("#"+id).addEventListener("input",()=>updateAll(false));
@@ -355,7 +479,15 @@ function setupEvents(){
   });
   $("#downloadBtn").addEventListener("click",()=>window.print());
   $("#mobileMenu").addEventListener("click",()=>{$(".main-nav").classList.toggle("open");});
-  $$(".main-nav a").forEach(a=>a.addEventListener("click",()=>$(".main-nav").classList.remove("open")));
+  $(".main-nav a").forEach(a=>a.addEventListener("click",()=>$(".main-nav").classList.remove("open")));
+  const aiForm = $("#aiForm");
+  if (aiForm) aiForm.addEventListener("submit", requestAiPlan);
+  const applyAi = $("#applyAiSettings");
+  if (applyAi) applyAi.addEventListener("click", applyAiPlan);
+  $(".ai-prompt-chip").forEach((button) => button.addEventListener("click", () => {
+    $("#aiPrompt").value = button.dataset.aiPrompt || "";
+    $("#aiPrompt").focus();
+  }));
 }
 async function init(){
   setupEvents();const est=syncInputs();updateSummary(est);makePlan(est);drawMaterials(est);
