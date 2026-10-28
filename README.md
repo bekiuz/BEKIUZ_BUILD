@@ -44,6 +44,14 @@ GitHub Actions validates the code; it does not deploy to GitHub Pages. A static 
 - Package the responsive web app as an Android APK after the web MVP is tested
 
 
+## Supabase data schema (prepared, not connected yet)
+
+The SQL migration at `supabase/migrations/20261028000000_house_projects.sql` defines:
+- user-owned house projects with row-level security so each signed-in user only sees their own records;
+- a read-only material catalogue with region, source and verification-date fields.
+
+Apply this migration only to a dedicated BEKIUZ BUILD Supabase project after choosing the intended Supabase organization. Do not run it against a database used by other apps. The current MVP saves project settings in the local browser; cloud login/synchronization is not active until a dedicated project and public client configuration are connected.
+
 ## AI planner setup (Netlify)
 
 The AI assistant uses a Netlify Function and the Gemini generateContent API. The API key is read on the server and is never embedded in public JavaScript.
