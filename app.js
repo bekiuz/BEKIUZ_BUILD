@@ -47,7 +47,7 @@ function calculate() {
 
 function syncInputs() {
   ["plotWidth", "plotLength", "houseWidth", "houseLength"].forEach((id) => {
-    state[id] = clamp($("#" + id).value, id === "plotLength" ? 8 : 4, id === "plotWidth" ? 100 : id === "plotLength" ? 200 : id === "houseWidth" ? 30 : 40);
+    state[id] = clamp($("#" + id).value, id === "plotWidth" ? 6 : id === "plotLength" ? 8 : 4, id === "plotWidth" ? 100 : id === "plotLength" ? 200 : id === "houseWidth" ? 30 : 40);
   });
   state.houseWidth = Math.min(state.houseWidth, Math.max(4, state.plotWidth - 2));
   state.houseLength = Math.min(state.houseLength, Math.max(4, state.plotLength - 2));
@@ -167,6 +167,13 @@ function createWorld(canvas, hero) {
   if(!hero){controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.07;controls.minPolarAngle=.18;controls.maxPolarAngle=Math.PI*.48;controls.target.set(0,1.6,0);}
   function resize(){const r=canvas.parentElement.getBoundingClientRect();renderer.setSize(Math.max(1,r.width),Math.max(1,r.height),false);camera.aspect=Math.max(1,r.width)/Math.max(1,r.height);camera.updateProjectionMatrix();}
   function rebuild(c){
+    model.traverse((child) => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
+        else child.material.dispose();
+      }
+    });
     model.clear();
     model.add(makeHouse(c));
     const max=Math.max(c.width,c.length), distance=Math.max(19,max*(hero?1.55:1.7));
