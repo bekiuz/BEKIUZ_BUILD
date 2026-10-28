@@ -27,6 +27,8 @@ type AiPlan = {
 };
 
 const allowedOrigins = new Set([
+  "https://bekiuz.github.io",
+  "https://bekiuz-build.netlify.app",
   "https://localhost",
   "capacitor://localhost",
   "http://localhost",
