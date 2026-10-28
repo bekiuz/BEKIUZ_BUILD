@@ -26,10 +26,29 @@ type AiPlan = {
   };
 };
 
-const jsonResponse = (body: unknown, status = 200) =>
+const allowedOrigins = new Set([
+  "https://localhost",
+  "capacitor://localhost",
+  "http://localhost",
+]);
+
+const corsHeaders = (request: Request): Record<string, string> => {
+  const origin = request.headers.get("origin");
+  const headers: Record<string, string> = {
+    "access-control-allow-methods": "POST, OPTIONS",
+    "access-control-allow-headers": "Content-Type",
+    "access-control-max-age": "600",
+    "vary": "Origin",
+  };
+  if (origin && allowedOrigins.has(origin)) headers["access-control-allow-origin"] = origin;
+  return headers;
+};
+
+const jsonResponse = (body: unknown, status = 200, request?: Request) =>
   new Response(JSON.stringify(body), {
     status,
     headers: {
+      ...(request ? corsHeaders(request) : {}),
       "content-type": "application/json; charset=utf-8",
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
@@ -110,13 +129,22 @@ function validatePlan(value: unknown, project: ReturnType<typeof validateProject
 }
 
 export default async (request: Request) => {
+  if (request.method === "OPTIONS") {
+    const origin = request.headers.get("origin");
+    if (origin && !allowedOrigins.has(origin)) {
+      return new Response(null, { status: 403, headers: { "cache-control": "no-store" } });
+    }
+    return new Response(null, { status: 204, headers: corsHeaders(request) });
+  }
+
+  const respond = (body: unknown, status = 200) => jsonResponse(body, status, request);
   if (request.method !== "POST") {
-    return jsonResponse({ error: "Faqat POST so‘rovi qabul qilinadi.", code: "METHOD_NOT_ALLOWED" }, 405);
+    return respond({ error: "Faqat POST so‘rovi qabul qilinadi.", code: "METHOD_NOT_ALLOWED" }, 405);
   }
 
   const apiKey = Netlify.env.get("GEMINI_API_KEY");
   if (!apiKey) {
-    return jsonResponse({
+    return respond({
       error: "Gemini API kaliti serverda sozlanmagan.",
       code: "AI_NOT_CONFIGURED",
       setup: "Netlify saytida GEMINI_API_KEY environment variable yarating va qayta deploy qiling.",
@@ -127,12 +155,12 @@ export default async (request: Request) => {
   try {
     body = await request.json() as { prompt?: unknown; project?: ProjectInput };
   } catch {
-    return jsonResponse({ error: "So‘rov JSON formatida bo‘lishi kerak.", code: "INVALID_JSON" }, 400);
+    return respond({ error: "So‘rov JSON formatida bo‘lishi kerak.", code: "INVALID_JSON" }, 400);
   }
 
   const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
-  if (!prompt) return jsonResponse({ error: "Uy talablarini yozing.", code: "PROMPT_REQUIRED" }, 400);
-  if (prompt.length > 1200) return jsonResponse({ error: "So‘rov 1200 belgidan oshmasligi kerak.", code: "PROMPT_TOO_LONG" }, 400);
+  if (!prompt) return respond({ error: "Uy talablarini yozing.", code: "PROMPT_REQUIRED" }, 400);
+  if (prompt.length > 1200) return respond({ error: "So‘rov 1200 belgidan oshmasligi kerak.", code: "PROMPT_TOO_LONG" }, 400);
 
   const project = validateProject(body.project);
   const userPrompt = [
@@ -192,18 +220,18 @@ export default async (request: Request) => {
       },
     );
   } catch {
-    return jsonResponse({ error: "Gemini xizmatiga ulanib bo‘lmadi. Keyinroq qayta urinib ko‘ring.", code: "AI_NETWORK_ERROR" }, 502);
+    return respond({ error: "Gemini xizmatiga ulanib bo‘lmadi. Keyinroq qayta urinib ko‘ring.", code: "AI_NETWORK_ERROR" }, 502);
   }
 
   if (!apiResponse.ok) {
     const status = apiResponse.status;
     if (status === 429) {
-      return jsonResponse({ error: "AI so‘rovlari limiti tugadi. Birozdan keyin qayta urinib ko‘ring.", code: "AI_RATE_LIMIT" }, 429);
+      return respond({ error: "AI so‘rovlari limiti tugadi. Birozdan keyin qayta urinib ko‘ring.", code: "AI_RATE_LIMIT" }, 429);
     }
     if (status === 401 || status === 403) {
-      return jsonResponse({ error: "Gemini API kaliti noto‘g‘ri yoki kerakli ruxsatga ega emas. Netlify’dagi kalit sozlamasini tekshiring.", code: "AI_AUTH_ERROR" }, 502);
+      return respond({ error: "Gemini API kaliti noto‘g‘ri yoki kerakli ruxsatga ega emas. Netlify’dagi kalit sozlamasini tekshiring.", code: "AI_AUTH_ERROR" }, 502);
     }
-    return jsonResponse({ error: "Gemini javob qaytarmadi. Server sozlamalari va API holatini tekshiring.", code: "AI_PROVIDER_ERROR" }, 502);
+    return respond({ error: "Gemini javob qaytarmadi. Server sozlamalari va API holatini tekshiring.", code: "AI_PROVIDER_ERROR" }, 502);
   }
 
   try {
@@ -214,15 +242,15 @@ export default async (request: Request) => {
     if (!generatedText) throw new Error("Empty model response.");
     const parsed = JSON.parse(generatedText);
     const plan = validatePlan(parsed, project);
-    return jsonResponse({ success: true, plan });
+    return respond({ success: true, plan });
   } catch {
-    return jsonResponse({ error: "AI javobini qayta ishlashda xatolik bo‘ldi. Yana urinib ko‘ring.", code: "AI_PARSE_ERROR" }, 502);
+    return respond({ error: "AI javobini qayta ishlashda xatolik bo‘ldi. Yana urinib ko‘ring.", code: "AI_PARSE_ERROR" }, 502);
   }
 };
 
 export const config = {
   path: "/.netlify/functions/ai-plan",
-  method: ["POST"],
+  method: ["POST", "OPTIONS"],
   rateLimit: {
     action: "rate_limit",
     aggregateBy: "ip",
