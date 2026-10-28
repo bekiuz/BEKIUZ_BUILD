@@ -108,48 +108,178 @@ function box(group, x,y,z,sx,sy,sz, material, rot = 0) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz), material);
   m.position.set(x,y,z); m.rotation.y = rot; m.castShadow = true; m.receiveShadow = true; group.add(m); return m;
 }
-function makeHouse(config) {
-  const g = new THREE.Group(), w = config.width, l = config.length, floors = config.floors, story = 2.85, wallH = 2.69, top = floors * story;
-  const plaster = mat("#f5f1e7"), side = mat("#deded0"), base = mat("#b5b9aa"), roof = mat("#465d43",.7), darkRoof = mat("#354a33",.65), frame = mat("#fbf7ec"), door = mat("#86684c"), floor = mat("#d2d4c6"), partition = mat("#cfd4c5"), bed = mat("#b5c8a0"), furniture = mat("#c6b49b");
-  const glass = new THREE.MeshStandardMaterial({ color:"#a6ceda", roughness:.24, transparent:true, opacity:.86 });
-  box(g,0,.07,0,w+.5,.14,l+.5,base);
-  for (let f=0; f<floors; f++) {
-    const y0=f*story, cy=y0+wallH/2+.17, t=.18, fz=-l/2-.055, ww=Math.min(1.5,w*.16), wh=1.0, wy=y0+1.65;
-    box(g,0,y0+.17,0,w,.1,l,floor);
-    box(g,0,cy,-l/2+t/2,w,wallH,t,plaster);
-    box(g,0,cy,l/2-t/2,w,wallH,t,side);
-    box(g,-w/2+t/2,cy,0,t,wallH,l,side);
-    box(g,w/2-t/2,cy,0,t,wallH,l,plaster);
-    box(g,0,y0+1.02,fz,Math.min(1.05,w*.12),1.95,.07,door);
-    box(g,0,y0+2.06,fz-.045,Math.min(1.12,w*.125),.08,.09,frame);
-    [-w*.29,w*.02,w*.31].forEach((wx)=>{
-      if(Math.abs(wx)<.9)return;
-      box(g,wx,wy,fz-.025,ww+.16,wh+.16,.075,frame);
-      box(g,wx,wy,fz-.07,ww,wh,.08,glass);
-      box(g,wx,wy,fz-.12,.045,wh,.025,frame);
-      box(g,wx,wy,fz-.12,ww,.045,.025,frame);
-    });
-    [-w*.25,w*.25].forEach((wx)=>box(g,wx,wy,l/2+.03,ww,wh,.06,glass));
-    [-l*.25,l*.25].forEach((z)=>{box(g,-w/2-.03,wy,z,.06,wh,Math.min(1.4,l*.15),glass);box(g,w/2+.03,wy,z,.06,wh,Math.min(1.4,l*.15),glass);});
-    const ph=wallH*.77;
-    if(config.rooms>=3){box(g,-w*.08,y0+.18+ph/2,0,.10,ph,l*.85,partition);box(g,w*.08,y0+.18+ph/2,l*.08,w*.75,ph,.10,partition);}
-    if(config.rooms>=4)box(g,-w*.22,y0+.18+ph/2,l*.20,.10,ph,l*.42,partition);
-    box(g,-w*.27,y0+.49,l*.25,Math.min(1.8,w*.22),.38,Math.min(2.15,l*.2),bed);
-    box(g,w*.24,y0+.38,-l*.17,Math.min(1.3,w*.16),.24,Math.min(1,l*.1),furniture);
+function addPolygonPrism(group, name, points, thickness, sourceMaterial) {
+  // Build a real sloped roof panel from a planar polygon plus a small vertical thickness.
+  const bottom = points.map(([x, y, z]) => [x, y - thickness, z]);
+  const vertices = [];
+  const tri = (a, b, c) => vertices.push(...a, ...b, ...c);
+  for (let i = 1; i < points.length - 1; i++) tri(points[0], points[i], points[i + 1]);
+  for (let i = 1; i < bottom.length - 1; i++) tri(bottom[0], bottom[i + 1], bottom[i]);
+  for (let i = 0; i < points.length; i++) {
+    const next = (i + 1) % points.length;
+    tri(points[i], bottom[i], bottom[next]);
+    tri(points[i], bottom[next], points[next]);
   }
-  if(config.roofType==="gable"){
-    const rise=Math.max(1.1,Math.min(2.1,w*.17)), half=w/2, sl=Math.sqrt(half*half+rise*rise)+.25, a=Math.atan2(rise,half);
-    box(g,-w/4,top+rise/2+.12,0,sl,.16,l+.8,roof,a);
-    box(g,w/4,top+rise/2+.12,0,sl,.16,l+.8,roof,-a);
-    box(g,0,top+rise/2,-l/2-.015,w,rise,.10,plaster);
-    box(g,0,top+rise/2,l/2+.015,w,rise,.10,side);
-    box(g,0,top+rise+.15,0,.12,.12,l+.92,darkRoof);
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(vertices), 3));
+  geometry.computeVertexNormals();
+  const panelMaterial = sourceMaterial.clone();
+  panelMaterial.side = THREE.DoubleSide;
+  const mesh = new THREE.Mesh(geometry, panelMaterial);
+  mesh.name = name;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  return mesh;
+}
+
+function addTriangleFace(group, name, points, sourceMaterial) {
+  const geometry = new THREE.BufferGeometry();
+  const vertices = new Float32Array(points.flat());
+  geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+  geometry.computeVertexNormals();
+  const panelMaterial = sourceMaterial.clone();
+  panelMaterial.side = THREE.DoubleSide;
+  const mesh = new THREE.Mesh(geometry, panelMaterial);
+  mesh.name = name;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  return mesh;
+}
+
+function makeHouse(config) {
+  const g = new THREE.Group();
+  const w = config.width, l = config.length, floors = config.floors;
+  const story = 2.85, wallH = story - .17, top = floors * story;
+  const plaster = mat("#f5f1e7"), side = mat("#deded0"), base = mat("#b5b9aa");
+  const frame = mat("#fbf7ec"), door = mat("#86684c"), floor = mat("#d2d4c6");
+  const partition = mat("#cfd4c5"), bed = mat("#b5c8a0"), furniture = mat("#c6b49b");
+  const roof = new THREE.MeshStandardMaterial({ color: "#465d43", roughness: .72, side: THREE.DoubleSide });
+  const darkRoof = new THREE.MeshStandardMaterial({ color: "#354a33", roughness: .68, side: THREE.DoubleSide });
+  const glass = new THREE.MeshStandardMaterial({ color: "#a6ceda", roughness: .24, transparent: true, opacity: .86 });
+
+  box(g, 0, .07, 0, w + .5, .14, l + .5, base);
+  for (let f = 0; f < floors; f++) {
+    const y0 = f * story;
+    const cy = y0 + .17 + wallH / 2;
+    const t = .18;
+    const frontZ = -l / 2 - .055;
+    const ww = Math.min(1.5, w * .16), wh = 1.0, wy = y0 + 1.65;
+    box(g, 0, y0 + .17, 0, w, .1, l, floor);
+
+    // Four walls and clean, flush facade details for the concept model.
+    box(g, 0, cy, -l / 2 + t / 2, w, wallH, t, plaster);
+    box(g, 0, cy, l / 2 - t / 2, w, wallH, t, side);
+    box(g, -w / 2 + t / 2, cy, 0, t, wallH, l, side);
+    box(g, w / 2 - t / 2, cy, 0, t, wallH, l, plaster);
+
+    // Entry and window accents.
+    box(g, 0, y0 + 1.02, frontZ, Math.min(1.05, w * .12), 1.95, .07, door);
+    box(g, 0, y0 + 2.06, frontZ - .045, Math.min(1.12, w * .125), .08, .09, frame);
+    [-w * .29, w * .31].forEach((wx) => {
+      const windowWidth = Math.min(1.5, w * .16);
+      box(g, wx, wy, frontZ - .025, windowWidth + .16, wh + .16, .075, frame);
+      box(g, wx, wy, frontZ - .07, windowWidth, wh, .08, glass);
+      box(g, wx, wy, frontZ - .12, .045, wh, .025, frame);
+      box(g, wx, wy, frontZ - .12, windowWidth, .045, .025, frame);
+    });
+    [-w * .25, w * .25].forEach((wx) => {
+      box(g, wx, wy, l / 2 + .03, ww, wh, .06, glass);
+      box(g, wx, wy, l / 2 + .065, ww + .10, .06, .065, frame);
+    });
+    [-l * .25, l * .25].forEach((z) => {
+      box(g, -w / 2 - .03, wy, z, .06, wh, Math.min(1.4, l * .15), glass);
+      box(g, w / 2 + .03, wy, z, .06, wh, Math.min(1.4, l * .15), glass);
+    });
+
+    // Interior partition and furniture hints; final room dimensions need architectural review.
+    const ph = wallH * .77;
+    if (config.rooms >= 3) {
+      box(g, -w * .08, y0 + .18 + ph / 2, 0, .10, ph, l * .85, partition);
+      box(g, w * .08, y0 + .18 + ph / 2, l * .08, w * .75, ph, .10, partition);
+    }
+    if (config.rooms >= 4) box(g, -w * .22, y0 + .18 + ph / 2, l * .20, .10, ph, l * .42, partition);
+    box(g, -w * .27, y0 + .49, l * .25, Math.min(1.8, w * .22), .38, Math.min(2.15, l * .2), bed);
+    box(g, w * .24, y0 + .38, -l * .17, Math.min(1.3, w * .16), .24, Math.min(1, l * .1), furniture);
+  }
+
+  // Use the smaller building dimension for the roof span and the longer dimension
+  // for the ridge, so the roof geometry stays correct for either plot orientation.
+  const swapAxes = w > l;
+  const roofW = Math.min(w, l), roofL = Math.max(w, l);
+  const toWorld = ([x, y, z]) => swapAxes ? [-z, y, x] : [x, y, z];
+  const eaveHalfW = roofW / 2 + .38;
+  const eaveHalfL = roofL / 2 + .42;
+  const eaveY = top + .04;
+  const rise = Math.max(1.0, Math.min(2.15, roofW * .20));
+  const ridgeY = top + rise + .04;
+
+  if (config.roofType === "gable") {
+    const front = -roofL / 2 - .015;
+    const rear = roofL / 2 + .015;
+    addTriangleFace(g, "Front gable wall", [
+      toWorld([-roofW / 2, top - .01, front]),
+      toWorld([ roofW / 2, top - .01, front]),
+      toWorld([0, ridgeY - .02, front])
+    ], plaster);
+    addTriangleFace(g, "Rear gable wall", [
+      toWorld([-roofW / 2, top - .01, rear]),
+      toWorld([ roofW / 2, top - .01, rear]),
+      toWorld([0, ridgeY - .02, rear])
+    ], side);
+    addPolygonPrism(g, "Left pitched roof plane", [
+      toWorld([-eaveHalfW, eaveY, -eaveHalfL]),
+      toWorld([0, ridgeY, -eaveHalfL]),
+      toWorld([0, ridgeY, eaveHalfL]),
+      toWorld([-eaveHalfW, eaveY, eaveHalfL])
+    ], .14, roof);
+    addPolygonPrism(g, "Right pitched roof plane", [
+      toWorld([0, ridgeY, -eaveHalfL]),
+      toWorld([eaveHalfW, eaveY, -eaveHalfL]),
+      toWorld([eaveHalfW, eaveY, eaveHalfL]),
+      toWorld([0, ridgeY, eaveHalfL])
+    ], .14, darkRoof);
+    const ridgeStart = toWorld([0, ridgeY + .015, 0]);
+    const ridgeBar = box(g, ridgeStart[0], ridgeStart[1], ridgeStart[2], swapAxes ? roofL + .8 : .12, .12, swapAxes ? .12 : roofL + .8, darkRoof);
+    ridgeBar.name = "Gable roof ridge cap";
+  } else if (config.roofType === "hip") {
+    const ridgeHalfL = Math.max(0, eaveHalfL - eaveHalfW);
+    const ridgeFront = -ridgeHalfL, ridgeRear = ridgeHalfL;
+    addPolygonPrism(g, "Left hip roof plane", [
+      toWorld([-eaveHalfW, eaveY, -eaveHalfL]),
+      toWorld([0, ridgeY, ridgeFront]),
+      toWorld([0, ridgeY, ridgeRear]),
+      toWorld([-eaveHalfW, eaveY, eaveHalfL])
+    ], .14, roof);
+    addPolygonPrism(g, "Right hip roof plane", [
+      toWorld([0, ridgeY, ridgeFront]),
+      toWorld([eaveHalfW, eaveY, -eaveHalfL]),
+      toWorld([eaveHalfW, eaveY, eaveHalfL]),
+      toWorld([0, ridgeY, ridgeRear])
+    ], .14, darkRoof);
+    addPolygonPrism(g, "Front hip roof plane", [
+      toWorld([-eaveHalfW, eaveY, -eaveHalfL]),
+      toWorld([0, ridgeY, ridgeFront]),
+      toWorld([eaveHalfW, eaveY, -eaveHalfL])
+    ], .14, roof);
+    addPolygonPrism(g, "Rear hip roof plane", [
+      toWorld([-eaveHalfW, eaveY, eaveHalfL]),
+      toWorld([eaveHalfW, eaveY, eaveHalfL]),
+      toWorld([0, ridgeY, ridgeRear])
+    ], .14, darkRoof);
+    if (ridgeHalfL > .15) {
+      const cap = box(g, 0, ridgeY + .015, 0, swapAxes ? .12 : ridgeHalfL * 2, .12, swapAxes ? ridgeHalfL * 2 : .12, darkRoof);
+      cap.name = "Hip roof ridge cap";
+    }
   } else {
-    box(g,0,top+.15,0,w+.45,.22,l+.45,roof);
-    box(g,0,top+.28,0,w+.22,.08,l+.22,darkRoof);
+    const flatRoof = box(g, 0, top + .06, 0, w + .76, .20, l + .84, roof);
+    flatRoof.name = "Flat roof slab";
+    box(g, 0, top + .19, 0, w + .5, .07, l + .58, darkRoof).name = "Flat roof edge";
   }
   return g;
 }
+
 function createWorld(canvas, hero) {
   const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:"high-performance"});
   renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));
