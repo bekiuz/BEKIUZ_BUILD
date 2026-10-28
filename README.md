@@ -21,9 +21,10 @@ Open `index.html` in a browser. The 3D preview loads Three.js from a CDN, so an 
 
 ## Deploy with GitHub Pages
 1. Open repository **Settings → Pages**.
-2. Under **Build and deployment**, choose **Deploy from a branch**.
-3. Select branch `main` and folder `/ (root)`.
-4. Save and wait for the first deployment.
+2. Under **Build and deployment → Source**, select **GitHub Actions**.
+3. Open the **Actions** tab and select **Deploy BEKIUZ BUILD to GitHub Pages**.
+4. Choose the latest run and click **Re-run all jobs**.
+5. After a successful deploy, the project site should be available at `https://bekiuz.github.io/BEKIUZ_BUILD/`.
 
 ## Roadmap
 - Validate the workflow with real homeowners and builders
