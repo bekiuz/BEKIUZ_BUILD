@@ -29,6 +29,11 @@ function calculate() {
   const wallArea = perimeter * 2.85 * floors * 0.84;
   // These simple assumptions are for a visual demo only, not structural design.
   const concrete = footprint * 0.12 * floors + perimeter * 0.20 * 0.45;
+  const lightingPoints = Math.max(3, Math.ceil(floorArea / 12));
+  const socketPoints = Math.max(6, Math.ceil(floorArea / 8));
+  const switchPoints = Math.max(3, Math.ceil(lightingPoints / 2));
+  const waterPoints = Math.max(3, state.rooms + 3);
+  const drainagePoints = Math.max(2, state.rooms + 2);
   const quantities = {
     concrete: concrete,
     brick: Math.ceil(wallArea * 52),
@@ -42,7 +47,17 @@ function calculate() {
   const totals = {};
   let total = 0;
   Object.keys(quantities).forEach((key) => { totals[key] = quantities[key] * rates[key].price; total += totals[key]; });
-  return { plotArea: state.plotWidth * state.plotLength, footprint, floorArea, perimeter, roofArea: quantities.roof, quantities, totals, total };
+  return {
+    plotArea: state.plotWidth * state.plotLength,
+    footprint,
+    floorArea,
+    perimeter,
+    roofArea: quantities.roof,
+    quantities,
+    utilityPoints: { lightingPoints, socketPoints, switchPoints, waterPoints, drainagePoints },
+    totals,
+    total
+  };
 }
 
 function syncInputs() {
@@ -99,6 +114,7 @@ function updateSummary(est) {
   $("#summaryRooms").textContent = (state.rooms === 5 ? "5+" : state.rooms) + " ta";
   $("#summaryRoof").textContent = fmt(est.roofArea,1) + " m²";
   $("#summaryCost").textContent = money(est.total);
+  renderUtilities(est);
 }
 
 function mat(color, roughness = .85) {
@@ -323,11 +339,72 @@ function updateAll(rebuildMaterials=true){
   const config={width:state.houseWidth,length:state.houseLength,floors:state.floors,roofType:state.roofType,rooms:state.rooms};
   if(mainWorld)mainWorld.rebuild(config);
   if(heroWorld)heroWorld.rebuild({width:Math.min(12,state.houseWidth),length:Math.min(16,state.houseLength),floors:state.floors,roofType:state.roofType,rooms:state.rooms});
+  saveProjectState();
 }
+
+function renderUtilities(est) {
+  if (!est || !est.utilityPoints) return;
+  const points = est.utilityPoints;
+  const display = {
+    lightPoints: String(points.lightingPoints),
+    socketPoints: String(points.socketPoints),
+    switchPoints: String(points.switchPoints),
+    waterPoints: String(points.waterPoints),
+    drainPoints: String(points.drainagePoints),
+    utilityCable: fmt(est.quantities.wiring, 0) + " m",
+    utilityPipes: fmt(est.quantities.pipes, 0) + " m",
+    utilityArea: fmt(est.floorArea, 1) + " m²"
+  };
+  Object.entries(display).forEach(([id, value]) => {
+    const node = document.getElementById(id);
+    if (node) node.textContent = value;
+  });
+}
+
+function saveProjectState() {
+  try {
+    const saved = {
+      ...state,
+      prices: Object.fromEntries(Object.entries(rates).map(([key, item]) => [key, item.price]))
+    };
+    localStorage.setItem("bekiuz-build-project-v1", JSON.stringify(saved));
+  } catch (error) {
+    console.warn("Project settings could not be saved in this browser.", error);
+  }
+}
+
+function loadSavedProject() {
+  try {
+    const raw = localStorage.getItem("bekiuz-build-project-v1");
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    ["plotWidth", "plotLength", "houseWidth", "houseLength"].forEach((key) => {
+      if (Number.isFinite(Number(saved[key]))) state[key] = Number(saved[key]);
+      const field = document.getElementById(key);
+      if (field) field.value = state[key];
+    });
+    state.floors = clamp(saved.floors, 1, 2);
+    state.rooms = clamp(saved.rooms, 2, 5);
+    state.roofType = ["gable", "hip", "flat"].includes(saved.roofType) ? saved.roofType : "gable";
+    const roofField = document.getElementById("roofType");
+    if (roofField) roofField.value = state.roofType;
+    if (saved.prices && typeof saved.prices === "object") {
+      Object.entries(rates).forEach(([key, item]) => {
+        const value = Number(saved.prices[key]);
+        if (Number.isFinite(value) && value >= 0 && value <= 1000000000) item.price = value;
+      });
+    }
+    $(".segment").forEach((button) => button.classList.toggle("active", Number(button.dataset.floors) === state.floors));
+    $("#roomOptions button").forEach((button) => button.classList.toggle("active", Number(button.dataset.rooms) === state.rooms));
+  } catch (error) {
+    console.warn("Saved project settings could not be loaded.", error);
+  }
+}
+
 function activateView(view){
   $$(".preview-tab").forEach(b=>{const active=b.dataset.view===view;b.classList.toggle("active",active);b.setAttribute("aria-selected",String(active));});
   $$(".view-panel").forEach(p=>p.classList.remove("active"));
-  const map={"3d":"#view3d","plan":"#viewPlan","materials":"#viewMaterials"};$(map[view]).classList.add("active");
+  const map={"3d":"#view3d","plan":"#viewPlan","materials":"#viewMaterials","utilities":"#viewUtilities"};$(map[view]).classList.add("active");
   if(view==="3d")window.dispatchEvent(new Event("resize"));
 }
 let latestAiPlan = null;
@@ -469,6 +546,7 @@ function setupEvents(){
     const key=e.target.dataset.price;rates[key].price=clamp(e.target.value,0,1000000000);
     const est=calculate();updateSummary(est);
     const total=$('[data-total="'+key+'"]');if(total)total.textContent=money(est.totals[key]);
+    saveProjectState();
   });
   $("#resetBtn").addEventListener("click",()=>{
     Object.assign(state,defaults);["plotWidth","plotLength","houseWidth","houseLength"].forEach(id=>$("#"+id).value=state[id]);$("#roofType").value=state.roofType;
@@ -490,6 +568,7 @@ function setupEvents(){
   }));
 }
 async function init(){
+  loadSavedProject();
   setupEvents();const est=syncInputs();updateSummary(est);makePlan(est);drawMaterials(est);
   try{
     THREE = await import("three");
