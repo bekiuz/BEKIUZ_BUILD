@@ -1,43 +1,36 @@
-name: Deploy BEKIUZ BUILD to GitHub Pages
+name: Validate BEKIUZ BUILD
 
 on:
   push:
+    branches: ["main"]
+  pull_request:
     branches: ["main"]
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: "github-pages"
-  cancel-in-progress: true
 
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  validate:
+    name: Validate static app and AI function
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Check JavaScript syntax
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Check browser JavaScript syntax
         run: node --check --input-type=module < app.js
 
-      - name: Check web app manifest
+      - name: Validate web app manifest
         run: node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest', 'utf8')); console.log('Manifest JSON is valid')"
 
-      - name: Enable GitHub Pages
-        uses: actions/configure-pages@v5
+      - name: Validate Netlify AI function TypeScript
+        run: npx --yes --package typescript tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --lib ES2022,DOM --skipLibCheck netlify/functions/ai-plan.mts
 
-      - name: Upload static site
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-
-      - name: Deploy
-        id: deployment
-        uses: actions/deploy-pages@v4
+      - name: Ensure Netlify publish configuration exists
+        run: test -f netlify.toml && test -d netlify/functions
