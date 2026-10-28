@@ -134,7 +134,7 @@
 
           <div class="planner-main">
             <div class="workspace-topbar"><div class="workspace-name"><span class="workspace-status"></span><strong>Mening uyim</strong><small>Oxirgi o‘zgarishlar avtomatik aks etadi</small></div><div class="workspace-actions"><button class="icon-btn" id="resetBtn" title="Boshlang‘ich parametrlarni tiklash" aria-label="Boshlang‘ich parametrlarni tiklash">↺</button><button class="icon-btn" id="downloadBtn" title="Hisobotni chop etish yoki PDF saqlash" aria-label="Hisobotni chop etish yoki PDF saqlash">⇩</button></div></div>
-            <div class="preview-tabs" role="tablist" aria-label="Loyiha ko‘rinishi"><button class="preview-tab active" data-view="3d" role="tab" aria-selected="true">◈ <span>3D ko‘rinish</span></button><button class="preview-tab" data-view="plan" role="tab" aria-selected="false">▦ <span>Qavat rejasi</span></button><button class="preview-tab" data-view="materials" role="tab" aria-selected="false">▤ <span>Materiallar</span></button></div>
+            <div class="preview-tabs" role="tablist" aria-label="Loyiha ko‘rinishi"><button class="preview-tab active" data-view="3d" role="tab" aria-selected="true">◈ <span>3D ko‘rinish</span></button><button class="preview-tab" data-view="plan" role="tab" aria-selected="false">▦ <span>Qavat rejasi</span></button><button class="preview-tab" data-view="materials" role="tab" aria-selected="false">▤ <span>Materiallar</span></button><button class="preview-tab" data-view="utilities" role="tab" aria-selected="false">⌁ <span>Suv va elektr</span></button></div>
             <div class="view-area">
               <div class="view-panel active" id="view3d">
                 <div class="view-label"><span><i></i> JONLI 3D MODEL</span><span id="modelDimensions">10 × 14 m · 1 qavat</span></div>
@@ -150,6 +150,32 @@
                 <div class="view-label"><span><i></i> MATERIALLAR VA HISOB</span><span>DEMO NARXLAR</span></div>
                 <div class="material-list" id="materialList"></div>
                 <div class="materials-warning">Narxlar namuna uchun kiritilgan. Mahalliy yetkazib beruvchilar narxlari bilan almashtiring.</div>
+              </div>
+              <div class="view-panel" id="viewUtilities">
+                <div class="view-label"><span><i></i> SUV, ELEKTR VA YORITISH</span><span>DASTLABKI TAXMIN</span></div>
+                <div class="utility-layout">
+                  <article class="utility-card utility-card-electric">
+                    <div class="utility-card-icon">ϟ</div>
+                    <div class="utility-card-head"><h3>Elektr va yoritish</h3><p>Uyning umumiy maydoni asosida taxminiy nuqtalar.</p></div>
+                    <div class="utility-stat-grid">
+                      <div><span>Chiroq nuqtalari</span><strong id="lightPoints">—</strong></div>
+                      <div><span>Rozetkalar</span><strong id="socketPoints">—</strong></div>
+                      <div><span>Kalitlar</span><strong id="switchPoints">—</strong></div>
+                      <div><span>Kabel uzunligi</span><strong id="utilityCable">—</strong></div>
+                    </div>
+                  </article>
+                  <article class="utility-card utility-card-water">
+                    <div class="utility-card-icon">⌇</div>
+                    <div class="utility-card-head"><h3>Suv va kanalizatsiya</h3><p>Oshxona, hammom va sanuzel kabi nuqtalar uchun taxmin.</p></div>
+                    <div class="utility-stat-grid">
+                      <div><span>Suv nuqtalari</span><strong id="waterPoints">—</strong></div>
+                      <div><span>Oqova nuqtalari</span><strong id="drainPoints">—</strong></div>
+                      <div><span>Suv quvurlari</span><strong id="utilityPipes">—</strong></div>
+                      <div><span>Uyning maydoni</span><strong id="utilityArea">—</strong></div>
+                    </div>
+                  </article>
+                </div>
+                <p class="utility-warning">Bu sonlar dastlabki miqdoriy taxmin. Rozetka va chiroqlarning aniq joylashuvi, kabel kesimi, avtomat himoyasi, quvur diametri va kanalizatsiya nishabi yakuniy muhandislik loyihasida belgilanadi.</p>
               </div>
             </div>
             <div class="summary-strip">
