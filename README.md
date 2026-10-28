@@ -32,3 +32,22 @@ Open `index.html` in a browser. The 3D preview loads Three.js from a CDN, so an 
 - Improve room editor and plan export
 - Add separate plumbing and electrical planning views
 - Package the responsive web app as an Android APK after the web MVP is tested
+
+
+## AI planner setup (Netlify)
+
+The AI assistant is implemented as a server-side Netlify Function. The Gemini key is never placed in browser JavaScript.
+
+1. Connect this repository to a new Netlify site using the Netlify dashboard.
+2. In the site's environment variables, add `GEMINI_API_KEY` with a Gemini API key created in Google AI Studio. Scope it to Functions.
+3. Optionally set `GEMINI_MODEL`; the default in this project is `gemini-3.8-flash`.
+4. Trigger a fresh deployment after saving the environment variables.
+5. Test the AI planner on the deployed site. The AI assistant intentionally displays a setup message until the server key is configured.
+
+See the official [Gemini generateContent API](https://ai.google.dev/api/generate-content) and [Netlify Functions environment variables](https://docs.netlify.com/build/functions/environment-variables/).
+
+## Local function development
+
+Install the Netlify CLI, then run `netlify dev` from the repository root. Set `GEMINI_API_KEY` in the local Netlify development environment; never commit the key into GitHub or put it in `app.js`.
+
+GitHub Pages can host the static prototype, but it does not execute this Netlify Function. The AI endpoint requires the project to be deployed with Netlify Functions enabled.
