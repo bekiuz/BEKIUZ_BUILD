@@ -1,5 +1,10 @@
 # BEKIUZ BUILD
 
+**Design file:** [BEKIUZ BUILD UI in Figma](https://www.figma.com/design/0zbg59oMmcbr0Y5vC6wMHu)
+
+**Current release state:** source and validation pipeline are in GitHub; the Netlify project exists but is not yet connected to this repository or deployed. The Gemini endpoint is implemented but needs the Netlify deployment and server-side API key before it can answer real requests.
+
+
 **Plan your home before you build it.**
 
 BEKIUZ BUILD is an early MVP concept for home planning in Uzbekistan. The goal is to help people sketch a home, preview a simple 3D model, and understand approximate construction material quantities and costs before talking to architects and builders.
@@ -31,6 +36,7 @@ The AI assistant requires a server-side function, so Netlify is the intended hos
 GitHub Actions validates the code; it does not deploy to GitHub Pages. A static GitHub Pages deployment cannot execute the server-side AI function.
 
 ## Roadmap
+- Connect the repository to the Netlify project and test the live AI endpoint
 - Validate the workflow with real homeowners and builders
 - Replace demo prices with a region-aware, dated material price catalogue
 - Improve room editor and plan export
