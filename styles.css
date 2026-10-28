@@ -261,7 +261,7 @@ h2{font-size:clamp(34px,4.1vw,52px);margin:0}
 .ai-form textarea:focus{border-color:#9ec96b;box-shadow:0 0 0 3px rgba(187,224,126,.18)}
 .ai-form-footer{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-top:12px}
 .ai-security-note{display:flex;align-items:center;gap:6px;color:#919a87;font-size:9px}
-.ai-security-note icon{font-style:normal;color:#8eaa61;font-size:15px}
+.ai-lock-icon{font-style:normal;color:#8eaa61;font-size:15px}
 .btn-ai{background:#1a2617;color:#f8faF4;min-height:41px;padding:0 14px;gap:9px;white-space:nowrap}
 .btn-ai:hover{background:#2b3b25}
 .ai-button-spark{color:#c7f36c;font-size:15px}
