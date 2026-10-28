@@ -19,35 +19,38 @@ This MVP is a planning and presentation prototype, not a construction drawing or
 ## Run locally
 Open `index.html` in a browser. The 3D preview loads Three.js from a CDN, so an internet connection is required for that feature.
 
-## Deploy with GitHub Pages
-1. Open repository **Settings → Pages**.
-2. Under **Build and deployment → Source**, select **GitHub Actions**.
-3. Open the **Actions** tab and select **Deploy BEKIUZ BUILD to GitHub Pages**.
-4. Choose the latest run and click **Re-run all jobs**.
-5. After a successful deploy, the project site should be available at `https://bekiuz.github.io/BEKIUZ_BUILD/`.
+## Deploy with Netlify (recommended)
+
+The AI assistant requires a server-side function, so Netlify is the intended hosting target.
+
+1. Open the [BEKIUZ BUILD Netlify project](https://app.netlify.com/projects/bekiuz-build).
+2. In **Project configuration → Build & deploy → Continuous deployment**, connect the GitHub repository `bekiuz/BEKIUZ_BUILD` and branch `main`.
+3. Keep the repository's `netlify.toml` build settings: command `node scripts/build.mjs`, publish directory `dist`, and functions directory `netlify/functions`.
+4. Add `GEMINI_API_KEY` in **Environment variables** with Functions scope, then trigger a fresh deployment.
+
+GitHub Actions validates the code; it does not deploy to GitHub Pages. A static GitHub Pages deployment cannot execute the server-side AI function.
 
 ## Roadmap
 - Validate the workflow with real homeowners and builders
 - Replace demo prices with a region-aware, dated material price catalogue
 - Improve room editor and plan export
-- Add separate plumbing and electrical planning views
+- Refine separate plumbing and electrical planning views
 - Package the responsive web app as an Android APK after the web MVP is tested
 
 
 ## AI planner setup (Netlify)
 
-The AI assistant is implemented as a server-side Netlify Function. The Gemini key is never placed in browser JavaScript.
+The AI assistant uses a Netlify Function and the Gemini generateContent API. The API key is read on the server and is never embedded in public JavaScript.
 
-1. Connect this repository to a new Netlify site using the Netlify dashboard.
-2. In the site's environment variables, add `GEMINI_API_KEY` with a Gemini API key created in Google AI Studio. Scope it to Functions.
-3. Optionally set `GEMINI_MODEL`; the default in this project is `gemini-3.8-flash`.
-4. Trigger a fresh deployment after saving the environment variables.
-5. Test the AI planner on the deployed site. The AI assistant intentionally displays a setup message until the server key is configured.
+1. Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/apikey). Do not paste it into this chat or commit it to GitHub.
+2. In [the Netlify project settings](https://app.netlify.com/projects/bekiuz-build), add an environment variable named `GEMINI_API_KEY` and scope it to Functions.
+3. Trigger a fresh deploy after saving the variable. The default model is `gemini-3.8-flash`; optionally set `GEMINI_MODEL` to another supported model.
+4. Open the deployed site and submit a prompt in the AI planner.
 
-See the official [Gemini generateContent API](https://ai.google.dev/api/generate-content) and [Netlify Functions environment variables](https://docs.netlify.com/build/functions/environment-variables/).
+The AI returns suggestions and a proposed set of house parameters. It does not create an approved architectural drawing. Structural engineering, electrical installation and plumbing details need qualified professional review.
 
-## Local function development
+## Local development
 
-Install the Netlify CLI, then run `netlify dev` from the repository root. Set `GEMINI_API_KEY` in the local Netlify development environment; never commit the key into GitHub or put it in `app.js`.
+Run `node scripts/build.mjs` to generate a public-only `dist/` directory. Install the Netlify CLI and run `netlify dev` to test the function locally. Set `GEMINI_API_KEY` in the local environment; never place it in `app.js`.
 
-GitHub Pages can host the static prototype, but it does not execute this Netlify Function. The AI endpoint requires the project to be deployed with Netlify Functions enabled.
+Official references: [Gemini generateContent API](https://ai.google.dev/api/generate-content) and [Netlify Functions environment variables](https://docs.netlify.com/build/functions/environment-variables/).
