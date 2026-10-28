@@ -475,10 +475,7 @@ async function requestAiPlan(event) {
   };
 
   try {
-    const nativeApp = Boolean(window.Capacitor && typeof window.Capacitor.isNativePlatform === "function" && window.Capacitor.isNativePlatform());
-    const endpoint = nativeApp
-      ? "https://bekiuz-build.netlify.app/.netlify/functions/ai-plan"
-      : new URL("./.netlify/functions/ai-plan", window.location.href).toString();
+    const endpoint = "https://bekiuz-build.netlify.app/.netlify/functions/ai-plan";
     const response = await fetch(endpoint, {
       method: "POST",
       headers: { "content-type": "application/json" },
