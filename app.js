@@ -1,5 +1,5 @@
-import * as THREE from "three";
-import { OrbitControls } from "https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/controls/OrbitControls.js";
+let THREE;
+let OrbitControls;
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -227,15 +227,18 @@ function setupEvents(){
   $("#mobileMenu").addEventListener("click",()=>{$(".main-nav").classList.toggle("open");});
   $$(".main-nav a").forEach(a=>a.addEventListener("click",()=>$(".main-nav").classList.remove("open")));
 }
-function init(){
+async function init(){
   setupEvents();const est=syncInputs();updateSummary(est);makePlan(est);drawMaterials(est);
   try{
+    THREE = await import("three");
+    const controlsModule = await import("https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/controls/OrbitControls.js");
+    OrbitControls = controlsModule.OrbitControls;
     heroWorld=createWorld($("#heroCanvas"),true);mainWorld=createWorld($("#modelCanvas"),false);
     $("#modelLoading").classList.add("hidden");setTimeout(()=>$("#modelLoading")&&$("#modelLoading").remove(),650);
     updateAll(false);
   }catch(error){
     console.error("3D preview initialization failed",error);
-    const loading=$("#modelLoading");if(loading)loading.textContent="3D ko‘rinish uchun internet, WebGL va mos brauzer kerak.";
+    const loading=$("#modelLoading");if(loading)loading.textContent="3D ko‘rinish uchun internet, WebGL va mos brauzer kerak. Kalkulyator ishlashda davom etadi.";
   }
 }
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
