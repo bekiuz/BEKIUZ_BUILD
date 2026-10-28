@@ -70,9 +70,11 @@ function validatePlan(value: unknown, project: ReturnType<typeof validateProject
     : {};
 
   const roofInput = settings.roofType;
-  const roofType = roofInput === "hip" || roofInput === "flat" || roofInput === "gable"
-    ? roofInput
-    : project.roofType;
+  const roofType: "gable" | "hip" | "flat" =
+    roofInput === "hip" ? "hip"
+    : roofInput === "flat" ? "flat"
+    : roofInput === "gable" ? "gable"
+    : project.roofType as "gable" | "hip" | "flat";
 
   let houseWidth = boundedNumber(settings.houseWidth, project.houseWidth, 4, Math.max(4, Math.min(30, project.plotWidth - 2)));
   let houseLength = boundedNumber(settings.houseLength, project.houseLength, 4, Math.max(4, Math.min(40, project.plotLength - 2)));
