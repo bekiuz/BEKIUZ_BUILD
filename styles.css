@@ -279,3 +279,21 @@ h2{font-size:clamp(34px,4.1vw,52px);margin:0}
 .apply-ai-btn{min-height:40px}
 @media(max-width:800px){.ai-assistant{margin:13px 12px 0;padding:16px}.ai-assistant-head{gap:9px}.ai-brand-icon{width:34px;height:34px;border-radius:9px}.ai-heading-copy h3{font-size:14px}.ai-prompt-chips{gap:6px}.ai-prompt-chip{font-size:8px;padding:7px 8px}.ai-form-footer{align-items:flex-start;flex-direction:column}.btn-ai{width:100%}.ai-security-note{font-size:8px}.ai-result{padding:13px}}
 @media(max-width:420px){.ai-assistant{margin-left:9px;margin-right:9px;padding:12px}.ai-status-badge{font-size:7px;padding:4px 6px}.ai-heading-copy p{font-size:9px}.ai-form textarea{font-size:11px}.ai-prompt-chip{font-size:8px}}
+
+
+/* Electrical and plumbing estimate view */
+.utility-layout{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.utility-card{border:1px solid #e0e7d8;border-radius:10px;background:#fff;padding:16px;min-width:0}
+.utility-card-electric{background:linear-gradient(145deg,#fbfcf7,#f1f6e9)}
+.utility-card-water{background:linear-gradient(145deg,#fbfcf8,#edf5f4)}
+.utility-card-icon{width:35px;height:35px;border-radius:9px;background:#e2edcf;color:#648342;display:grid;place-items:center;font-size:19px;margin-bottom:12px}
+.utility-card-water .utility-card-icon{background:#dfedef;color:#568b99}
+.utility-card-head h3{font:800 14px Manrope,sans-serif;letter-spacing:-.03em;color:#283523;margin:0 0 6px}
+.utility-card-head p{font-size:9px;line-height:1.65;color:#8a9481;margin:0;min-height:31px}
+.utility-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:15px}
+.utility-stat-grid>div{min-width:0;padding:9px;background:rgba(255,255,255,.75);border:1px solid rgba(224,231,216,.8);border-radius:7px;display:flex;flex-direction:column;gap:5px}
+.utility-stat-grid span{font-size:8px;line-height:1.5;color:#8b9581}
+.utility-stat-grid strong{font:800 14px Manrope,sans-serif;color:#516e35;overflow-wrap:anywhere}
+.utility-card-water .utility-stat-grid strong{color:#4d7983}
+.utility-warning{font-size:9px;color:#959d8a;line-height:1.8;padding:11px 12px;background:#f0f3ec;border-radius:7px;margin:12px 0 0}
+@media(max-width:540px){.utility-layout{grid-template-columns:1fr;gap:9px}.utility-card{padding:12px}.utility-card-head h3{font-size:13px}.utility-card-head p{min-height:0}.utility-stat-grid{margin-top:11px}.utility-stat-grid span{font-size:8px}.utility-stat-grid strong{font-size:13px}.utility-warning{font-size:8px}}
