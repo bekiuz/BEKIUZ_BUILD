@@ -1,14 +1,14 @@
 {
   "id": "./",
-  "name": "BEKIUZ BUILD — Home Design Studio",
+  "name": "BEKIUZ BUILD — AI uy loyihachisi",
   "short_name": "BEKIUZ BUILD",
-  "description": "Uyingizni qurishdan oldin loyihalang, 3D ko‘ring va xarajatlarni taxminiy hisoblang.",
+  "description": "AI yordamida uy rejasini chizish va qurilish materiallarini taxminiy hisoblash.",
   "lang": "uz-UZ",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f5f7f1",
-  "theme_color": "#101710",
+  "background_color": "#091018",
+  "theme_color": "#091018",
   "orientation": "any",
   "icons": [
     {
