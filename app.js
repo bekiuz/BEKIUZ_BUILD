@@ -1,3 +1,4 @@
+const AI_API_BASE = "https://bekiuz-ai.bekiuz282.workers.dev/api";
 let THREE;
 let OrbitControls;
 
@@ -89,9 +90,9 @@ function makePlan(est) {
   let rooms = "";
   blocks.forEach((r, i) => {
     const bx = x + r[1] * w, by = y + r[2] * h, bw = r[3] * w, bh = r[4] * h;
-    rooms += '<g><rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" fill="' + ["#fdfefb","#f2f6ec","#e9f0df"][i % 3] + '" stroke="#71835d" stroke-width="3"/><text x="' + (bx+bw/2) + '" y="' + (by+bh/2-3) + '" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="' + (bw < 95 ? 8 : 10) + '" font-weight="700" fill="#536746">' + r[0] + '</text><text x="' + (bx+bw/2) + '" y="' + (by+bh/2+13) + '" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" fill="#8a9880">' + fmt(est.footprint*r[3]*r[4],1) + ' m²</text></g>';
+    rooms += '<g><rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" fill="' + ["#202d3e","#243348","#29394b"][i % 3] + '" stroke="#71849b" stroke-width="3"/><text x="' + (bx+bw/2) + '" y="' + (by+bh/2-3) + '" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="' + (bw < 95 ? 8 : 10) + '" font-weight="700" fill="#d7e1ed">' + r[0] + '</text><text x="' + (bx+bw/2) + '" y="' + (by+bh/2+13) + '" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" fill="#99abc0">' + fmt(est.footprint*r[3]*r[4],1) + ' m²</text></g>';
   });
-  svg.innerHTML = '<defs><pattern id="planGrid" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M 12 0 L 0 0 0 12" fill="none" stroke="#dfe8d6" stroke-width=".6"/></pattern></defs><rect width="560" height="420" fill="url(#planGrid)" rx="10"/><text x="58" y="23" font-size="9" font-family="DM Sans,sans-serif" font-weight="700" letter-spacing="1.4" fill="#869579">NAMUNAVIY QAVAT REJASI</text><text x="502" y="23" text-anchor="end" font-size="9" font-family="DM Sans,sans-serif" fill="#7b8c6f">' + state.houseWidth + ' × ' + state.houseLength + ' m</text>' + rooms + '<path d="M 58 383 H 502 M 58 379 V 387 M 502 379 V 387" stroke="#8b9f75" stroke-width="1"/><text x="280" y="399" text-anchor="middle" font-size="10" font-family="DM Sans,sans-serif" fill="#708363">' + state.houseWidth + ' m</text><path d="M 521 41 V 363 M 517 41 H 525 M 517 363 H 525" stroke="#8b9f75" stroke-width="1"/><text x="536" y="203" text-anchor="middle" transform="rotate(90 536 203)" font-size="10" font-family="DM Sans,sans-serif" fill="#708363">' + state.houseLength + ' m</text>';
+  svg.innerHTML = '<defs><pattern id="planGrid" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M 12 0 L 0 0 0 12" fill="none" stroke="#35465b" stroke-width=".6"/></pattern></defs><rect width="560" height="420" fill="url(#planGrid)" rx="10"/><text x="58" y="23" font-size="9" font-family="DM Sans,sans-serif" font-weight="700" letter-spacing="1.4" fill="#9eafc4">NAMUNAVIY QAVAT REJASI</text><text x="502" y="23" text-anchor="end" font-size="9" font-family="DM Sans,sans-serif" fill="#b3bfd0">' + state.houseWidth + ' × ' + state.houseLength + ' m</text>' + rooms + '<path d="M 58 383 H 502 M 58 379 V 387 M 502 379 V 387" stroke="#8b9f75" stroke-width="1"/><text x="280" y="399" text-anchor="middle" font-size="10" font-family="DM Sans,sans-serif" fill="#708363">' + state.houseWidth + ' m</text><path d="M 521 41 V 363 M 517 41 H 525 M 517 363 H 525" stroke="#8b9f75" stroke-width="1"/><text x="536" y="203" text-anchor="middle" transform="rotate(90 536 203)" font-size="10" font-family="DM Sans,sans-serif" fill="#708363">' + state.houseLength + ' m</text>';
 }
 
 function drawMaterials(est) {
@@ -168,12 +169,12 @@ function makeHouse(config) {
   const g = new THREE.Group();
   const w = config.width, l = config.length, floors = config.floors;
   const story = 2.85, wallH = story - .17, top = floors * story;
-  const plaster = mat("#f5f1e7"), side = mat("#deded0"), base = mat("#b5b9aa");
-  const frame = mat("#fbf7ec"), door = mat("#86684c"), floor = mat("#d2d4c6");
-  const partition = mat("#cfd4c5"), bed = mat("#b5c8a0"), furniture = mat("#c6b49b");
-  const roof = new THREE.MeshStandardMaterial({ color: "#465d43", roughness: .72, side: THREE.DoubleSide });
-  const darkRoof = new THREE.MeshStandardMaterial({ color: "#354a33", roughness: .68, side: THREE.DoubleSide });
-  const glass = new THREE.MeshStandardMaterial({ color: "#a6ceda", roughness: .24, transparent: true, opacity: .86 });
+  const plaster = mat("#e9e1d3"), side = mat("#b8c1ca"), base = mat("#364355");
+  const frame = mat("#f4ead8"), door = mat("#946544"), floor = mat("#293748");
+  const partition = mat("#63768b"), bed = mat("#c9a26e"), furniture = mat("#b98259");
+  const roof = new THREE.MeshStandardMaterial({ color: "#38485b", roughness: .72, side: THREE.DoubleSide });
+  const darkRoof = new THREE.MeshStandardMaterial({ color: "#222e3c", roughness: .68, side: THREE.DoubleSide });
+  const glass = new THREE.MeshStandardMaterial({ color: "#7bcce4", roughness: .24, transparent: true, opacity: .86 });
 
   box(g, 0, .07, 0, w + .5, .14, l + .5, base);
   for (let f = 0; f < floors; f++) {
@@ -302,12 +303,12 @@ function createWorld(canvas, hero) {
   renderer.outputColorSpace=THREE.SRGBColorSpace;
   renderer.shadowMap.enabled=true;
   renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  const scene=new THREE.Scene(); scene.background=new THREE.Color("#e5ecdb"); scene.fog=new THREE.Fog("#e5ecdb",35,90);
+  const scene=new THREE.Scene(); scene.background=new THREE.Color("#111925"); scene.fog=new THREE.Fog("#111925",35,90);
   const camera=new THREE.PerspectiveCamera(36,1,.1,160);
-  scene.add(new THREE.HemisphereLight("#ffffff","#b1bea3",2));
-  const sun=new THREE.DirectionalLight("#fff6df",2.5); sun.position.set(12,20,-8); sun.castShadow=true; sun.shadow.mapSize.set(1024,1024); scene.add(sun);
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100),mat("#dce5d2")); ground.rotation.x=-Math.PI/2; ground.position.y=-.06; ground.receiveShadow=true; scene.add(ground);
-  const grid=new THREE.GridHelper(50,50,"#bdceb0","#cbd8c0"); grid.position.y=-.045; grid.material.transparent=true; grid.material.opacity=.34; scene.add(grid);
+  scene.add(new THREE.HemisphereLight("#ffffff","#708095",2));
+  const sun=new THREE.DirectionalLight("#fff0d8",2.5); sun.position.set(12,20,-8); sun.castShadow=true; sun.shadow.mapSize.set(1024,1024); scene.add(sun);
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100),mat("#182333")); ground.rotation.x=-Math.PI/2; ground.position.y=-.06; ground.receiveShadow=true; scene.add(ground);
+  const grid=new THREE.GridHelper(50,50,"#2c3a4c","#233044"); grid.position.y=-.045; grid.material.transparent=true; grid.material.opacity=.34; scene.add(grid);
   const model=new THREE.Group(); scene.add(model);
   let controls=null;
   if(!hero){controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.07;controls.minPolarAngle=.18;controls.maxPolarAngle=Math.PI*.48;controls.target.set(0,1.6,0);}
@@ -449,6 +450,33 @@ function renderAiPlan(plan) {
   $("#aiResult").hidden = false;
 }
 
+async function checkAiConnection() {
+  const badge = $("#aiConnection");
+  if (badge) {
+    badge.textContent = "AI ULANMOQDA";
+    badge.dataset.state = "checking";
+  }
+  try {
+    const response = await fetch(AI_API_BASE + "/health", {
+      headers: { "Accept": "application/json" }
+    });
+    const health = await response.json();
+    if (!response.ok || !health.ok) throw new Error("AI_HEALTH_FAILED");
+    if (!health.configured) {
+      if (badge) { badge.textContent = "AI SOZLANMAGAN"; badge.dataset.state = "error"; }
+      setAiStatus("Bekiuz AI serveri ochiq, lekin Cloudflare Workers AI binding sozlanmagan. Worker sozlamasini tekshirish kerak.", "error");
+      return false;
+    }
+    if (badge) { badge.textContent = "AI ULANGAN"; badge.dataset.state = "success"; }
+    setAiStatus("Bekiuz AI serveri bilan aloqa bor. Talablaringizni yozib, uy loyihasi bo‘yicha tavsiya oling.", "success");
+    return true;
+  } catch {
+    if (badge) { badge.textContent = "AI ALOQASI YO‘Q"; badge.dataset.state = "error"; }
+    setAiStatus("Bekiuz AI serveriga ulanish tekshiruvdan o‘tmadi. Worker deploy holati va /api/health manzilini tekshirish kerak.", "error");
+    return false;
+  }
+}
+
 async function requestAiPlan(event) {
   event.preventDefault();
   const prompt = $("#aiPrompt").value.trim();
@@ -462,7 +490,7 @@ async function requestAiPlan(event) {
   button.disabled = true;
   label.textContent = "Tahlil qilinmoqda…";
   $("#aiResult").hidden = true;
-  setAiStatus("Uy talablari tahlil qilinyapti. AI taxminiy variantlar tayyorlaydi…", "");
+  setAiStatus("Bekiuz AI uy talablaringizni tahlil qilib, loyiha variantini tayyorlayapti…", "");
 
   const project = {
     plotWidth: Number($("#plotWidth").value),
@@ -475,10 +503,9 @@ async function requestAiPlan(event) {
   };
 
   try {
-    const endpoint = "https://bekiuz-build.netlify.app/.netlify/functions/ai-plan";
-    const response = await fetch(endpoint, {
+    const response = await fetch(AI_API_BASE + "/plan", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "accept": "application/json" },
       body: JSON.stringify({ prompt, project })
     });
     const contentType = response.headers.get("content-type") || "";
@@ -497,14 +524,20 @@ async function requestAiPlan(event) {
       throw new Error("AI javobi kutilgan formatda kelmadi. Yana urinib ko‘ring.");
     }
     renderAiPlan(result.plan);
+    const badge = $("#aiConnection");
+    if (badge) { badge.textContent = "AI ULANGAN"; badge.dataset.state = "success"; }
     setAiStatus("Tavsiya tayyor. Parametrlarni qo‘llashdan oldin o‘zingiz ko‘rib chiqing.", "success");
   } catch (error) {
     const code = error && error.code ? error.code : "";
     let message = "AI xizmatiga ulanishda xatolik bo‘ldi. Birozdan keyin qayta urinib ko‘ring.";
-    if (code === "AI_NOT_CONFIGURED") {
-      message = "Gemini kaliti hali sozlanmagan. Netlify saytining Environment variables bo‘limida GEMINI_API_KEY yarating va saytni qayta deploy qiling.";
+    if (code === "AI_BINDING_NOT_CONFIGURED") {
+      message = "Bekiuz AI serveri mavjud, lekin Workers AI binding hali sozlanmagan.";
+    } else if (code === "AI_DAILY_LIMIT") {
+      message = "Bekiuz AI’ning bugungi bepul limiti tugagan. Kunlik limit yangilangach yana urinib ko‘ring.";
+    } else if (code === "AI_RATE_LIMIT") {
+      message = "Juda ko‘p so‘rov yuborildi. Bir daqiqadan keyin yana urinib ko‘ring.";
     } else if (code === "AI_BACKEND_UNAVAILABLE" || code === "AI_NETWORK_ERROR" || (error && error instanceof TypeError)) {
-      message = "AI backend hali ulanmagan. Bu funksiya Netlify’da ishlaydi; GitHub Pages faqat statik saytni ko‘rsatadi. Repozitoriyani Netlify’ga ulab, GEMINI_API_KEY ni server environment variable sifatida sozlang.";
+      message = "Bekiuz AI serveridan javob kelmadi. Worker deploy holatini yoki CORS sozlamasini tekshirish kerak.";
     } else if (error && error.message) {
       message = error.message;
     }
@@ -569,7 +602,9 @@ function setupEvents(){
 }
 async function init(){
   loadSavedProject();
-  setupEvents();const est=syncInputs();updateSummary(est);makePlan(est);drawMaterials(est);
+  setupEvents();
+  checkAiConnection();
+  const est=syncInputs();updateSummary(est);makePlan(est);drawMaterials(est);
   try{
     THREE = await import("three");
     const controlsModule = await import("https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/controls/OrbitControls.js");
