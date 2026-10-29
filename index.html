@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="theme-color" content="#101710" />
+  <meta name="theme-color" content="#090d14" />
   <meta name="description" content="BEKIUZ BUILD — uyingizni qurishdan oldin loyihalang, 3D ko‘ring va qurilish xarajatlarini taxminiy hisoblang." />
-  <title>BEKIUZ BUILD — Uyingizni qurishdan oldin ko‘ring</title>
+  <title>BEKIUZ BUILD — Raqamli uy loyihalash studiyasi</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="icon" href="favicon.svg" type="image/svg+xml" />
   <link rel="manifest" href="manifest.webmanifest" />
   <link rel="stylesheet" href="styles.css" />
@@ -40,7 +40,7 @@
   <main id="top">
     <section class="hero section-wrap">
       <div class="hero-copy">
-        <div class="eyebrow"><span class="live-dot"></span> UY QURISHNING YANGI USULI</div>
+        <div class="eyebrow"><span class="live-dot"></span> RAQAMLI UY LOYIHALASH STUDIO</div>
         <h1>Avval ko‘ring.<br /><em>Keyin quring.</em></h1>
         <p class="hero-lead">Yer o‘lchamingizni kiriting. Uyingiz rejasini tuzing, 3D ko‘rinishini ko‘ring va materiallar hamda xarajatlarni oldindan taxmin qiling.</p>
         <div class="hero-actions">
@@ -54,7 +54,7 @@
       </div>
       <div class="hero-stage">
         <div class="stage-grid"></div>
-        <div class="stage-label stage-label-top"><span class="stage-pulse"></span> 3D KO‘RINISH <span>01 / PREVIEW</span></div>
+        <div class="stage-label stage-label-top"><span class="stage-pulse"></span> 3D MODEL PREVIEW <span>01 / PREVIEW</span></div>
         <div class="hero-house-frame"><canvas id="heroCanvas" aria-label="BEKIUZ BUILD namunaviy uyining uch o‘lchamli ko‘rinishi"></canvas></div>
         <div class="floating-card dimensions-card"><span class="floating-icon">⌗</span><div><small>LOYIHA MAYDONI</small><strong id="heroArea">140 m²</strong></div><span class="green-dot"></span></div>
         <div class="floating-card cost-card"><span class="floating-icon">↗</span><div><small>TAXMINIY BYUDJET</small><strong id="heroCost">Hisoblanmoqda...</strong></div></div>
@@ -178,7 +178,7 @@
                 <p class="utility-warning">Bu sonlar dastlabki miqdoriy taxmin. Rozetka va chiroqlarning aniq joylashuvi, kabel kesimi, avtomat himoyasi, quvur diametri va kanalizatsiya nishabi yakuniy muhandislik loyihasida belgilanadi.</p>
               </div>
             </div>
-            <div class="summary-strip">
+            <div class="summary-strip" id="hisob">
               <div class="summary-item"><span>Uy maydoni</span><strong id="summaryArea">140 m²</strong><small id="summaryFloors">1 qavat</small></div>
               <div class="summary-item"><span>Xonalar</span><strong id="summaryRooms">3 ta</strong><small>namunaviy reja</small></div>
               <div class="summary-item"><span>Tom yuzasi</span><strong id="summaryRoof">168 m²</strong><small>taxminiy</small></div>
@@ -188,11 +188,11 @@
               <div class="ai-assistant-head">
                 <div class="ai-brand-icon" aria-hidden="true">✦</div>
                 <div class="ai-heading-copy">
-                  <div class="ai-kicker">GEMINI-POWERED PLANNER</div>
+                  <div class="ai-kicker">BEKIUZ AI · CLOUD ARCHITECT</div>
                   <h3 id="aiTitle">BEKIUZ AI yordamchi</h3>
                   <p>Uyingiz haqida yozing — AI parametrlarni va reja yo‘nalishini taklif qiladi.</p>
                 </div>
-                <span class="ai-status-badge">BETA</span>
+                <span class="ai-status-badge" id="aiConnection" data-state="checking">AI ULANMOQDA</span>
               </div>
               <div class="ai-prompt-chips" aria-label="Namunaviy so‘rovlar">
                 <button type="button" class="ai-prompt-chip" data-ai-prompt="4 xonali, bir qavatli oilaviy uy; alohida oshxona va 2 ta sanuzel kerak.">4 xonali oilaviy uy</button>
@@ -207,7 +207,7 @@
                   <button type="submit" id="aiSubmit" class="btn btn-ai"><span class="ai-button-spark">✦</span><span id="aiSubmitLabel">AI tavsiyasini olish</span></button>
                 </div>
               </form>
-              <p id="aiStatus" class="ai-message" role="status" aria-live="polite">AI funksiyasi serverga Gemini kaliti ulangandan keyin ishlaydi. Hozircha boshqa loyiha sozlamalarini sinab ko‘rishingiz mumkin.</p>
+              <p id="aiStatus" class="ai-message" role="status" aria-live="polite">Bekiuz AI serveriga ulanish tekshirilmoqda...</p>
               <div id="aiResult" class="ai-result" hidden>
                 <div class="ai-result-title">Siz uchun taklif</div>
                 <p id="aiSummary" class="ai-summary"></p>
@@ -240,7 +240,7 @@
   <footer class="site-footer section-wrap">
     <a class="brand footer-brand" href="#top"><span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4 15.3 16 5l12 10.3v12.2H4z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/><path d="M2.8 15.7 16 4l13.2 11.7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span><span class="brand-word">BEKIUZ <b>BUILD</b><small>HOME DESIGN STUDIO</small></span></a>
     <p>Uyingizni qurishdan oldin ko‘ring.</p>
-    <span class="footer-note">© 2026 BEKIUZ BUILD · MVP CONCEPT</span>
+    <span class="footer-note">© 2026 BEKIUZ BUILD · DIGITAL HOME PLANNING</span>
   </footer>
   <script>if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));</script>
 </body>
