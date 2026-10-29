@@ -1,620 +1,485 @@
-const AI_API_BASE = "https://bekiuz-ai.bekiuz282.workers.dev/api";
-let THREE;
-let OrbitControls;
+(() => {
+  "use strict";
 
-const $ = (s) => document.querySelector(s);
-const $$ = (s) => Array.from(document.querySelectorAll(s));
-const defaults = { plotWidth: 20, plotLength: 30, houseWidth: 10, houseLength: 14, floors: 1, rooms: 3, roofType: "gable" };
-const state = Object.assign({}, defaults);
-const rates = {
-  concrete: { name: "Beton (demo hajm)", unit: "m³", price: 950000, icon: "▧" },
-  brick: { name: "G‘isht", unit: "dona", price: 1300, icon: "▤" },
-  rebar: { name: "Armatura", unit: "kg", price: 11500, icon: "⌁" },
-  roof: { name: "Tom materiali", unit: "m²", price: 170000, icon: "⌂" },
-  windows: { name: "Deraza va eshiklar", unit: "m²", price: 850000, icon: "▣" },
-  wiring: { name: "Elektr kabeli", unit: "m", price: 3500, icon: "ϟ" },
-  pipes: { name: "Suv quvurlari", unit: "m", price: 14000, icon: "⌇" },
-  finish: { name: "Ichki pardoz (demo)", unit: "m²", price: 120000, icon: "▦" }
-};
-const initialRates = {};
-Object.keys(rates).forEach((key) => initialRates[key] = rates[key].price);
-const money = (n) => new Intl.NumberFormat("uz-UZ", { maximumFractionDigits: 0 }).format(Math.max(0, Math.round(n))) + " so‘m";
-const fmt = (n, digits = 1) => new Intl.NumberFormat("uz-UZ", { maximumFractionDigits: digits }).format(n);
-const clamp = (v, min, max) => Math.min(max, Math.max(min, Number(v) || min));
-
-function calculate() {
-  const w = state.houseWidth, l = state.houseLength, floors = state.floors;
-  const footprint = w * l;
-  const floorArea = footprint * floors;
-  const perimeter = 2 * (w + l);
-  const wallArea = perimeter * 2.85 * floors * 0.84;
-  // These simple assumptions are for a visual demo only, not structural design.
-  const concrete = footprint * 0.12 * floors + perimeter * 0.20 * 0.45;
-  const lightingPoints = Math.max(3, Math.ceil(floorArea / 12));
-  const socketPoints = Math.max(6, Math.ceil(floorArea / 8));
-  const switchPoints = Math.max(3, Math.ceil(lightingPoints / 2));
-  const waterPoints = Math.max(3, state.rooms + 3);
-  const drainagePoints = Math.max(2, state.rooms + 2);
-  const quantities = {
-    concrete: concrete,
-    brick: Math.ceil(wallArea * 52),
-    rebar: Math.ceil(concrete * 75),
-    roof: footprint * (state.roofType === "gable" ? 1.18 : state.roofType === "hip" ? 1.25 : 1.05),
-    windows: Math.max(8, wallArea * 0.12),
-    wiring: Math.ceil(floorArea * 4),
-    pipes: Math.ceil(floorArea * 1.1),
-    finish: floorArea * 2.8
+  const API_BASE = "https://bekiuz-ai.bekiuz282.workers.dev/api";
+  const $ = (selector) => document.querySelector(selector);
+  const NS = "http://www.w3.org/2000/svg";
+  const number = (id, fallback) => {
+    const value = Number($("#" + id).value);
+    return Number.isFinite(value) ? value : fallback;
   };
-  const totals = {};
-  let total = 0;
-  Object.keys(quantities).forEach((key) => { totals[key] = quantities[key] * rates[key].price; total += totals[key]; });
-  return {
-    plotArea: state.plotWidth * state.plotLength,
-    footprint,
-    floorArea,
-    perimeter,
-    roofArea: quantities.roof,
-    quantities,
-    utilityPoints: { lightingPoints, socketPoints, switchPoints, waterPoints, drainagePoints },
-    totals,
-    total
+  const clamp = (value, min, max) => Math.min(max, Math.max(min, Number(value) || min));
+  const round = (value, decimals = 2) => {
+    const factor = 10 ** decimals;
+    return Math.round((Number(value) + Number.EPSILON) * factor) / factor;
   };
-}
+  const fmt = (value, digits = 2) => new Intl.NumberFormat("uz-UZ", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: digits
+  }).format(value);
+  const integer = (value) => new Intl.NumberFormat("uz-UZ", { maximumFractionDigits: 0 }).format(value);
 
-function syncInputs() {
-  ["plotWidth", "plotLength", "houseWidth", "houseLength"].forEach((id) => {
-    state[id] = clamp($("#" + id).value, id === "plotWidth" ? 6 : id === "plotLength" ? 8 : 4, id === "plotWidth" ? 100 : id === "plotLength" ? 200 : id === "houseWidth" ? 30 : 40);
-  });
-  state.houseWidth = Math.min(state.houseWidth, Math.max(4, state.plotWidth - 2));
-  state.houseLength = Math.min(state.houseLength, Math.max(4, state.plotLength - 2));
-  const footprint = state.houseWidth * state.houseLength;
-  if (footprint > state.plotWidth * state.plotLength * 0.8) {
-    const scale = Math.sqrt(state.plotWidth * state.plotLength * 0.8 / footprint);
-    state.houseWidth = Math.max(4, state.houseWidth * scale);
-    state.houseLength = Math.max(4, state.houseLength * scale);
+  let lastProject = null;
+  let lastPlan = null;
+  let promptParseTimer = null;
+
+  function setConnection(online, label) {
+    const dot = $("#connectionDot");
+    dot.classList.toggle("online", online === true);
+    dot.classList.toggle("offline", online === false);
+    $("#connectionText").textContent = label;
   }
-  $("#houseWidth").value = Number(state.houseWidth.toFixed(1));
-  $("#houseLength").value = Number(state.houseLength.toFixed(1));
-  return calculate();
-}
 
-function makePlan(est) {
-  const svg = $("#floorPlanSvg"), x = 58, y = 41, w = 444, h = 322;
-  const templates = {
-    2: [["MEHMONXONA",0,0,.58,.53],["OSHXONA",.58,0,.42,.53],["YOTOQXONA",0,.53,.62,.47],["SANUZEL",.62,.53,.38,.47]],
-    3: [["MEHMONXONA",0,0,.57,.55],["OSHXONA",.57,0,.43,.55],["YOTOQ 1",0,.55,.34,.45],["YOTOQ 2",.34,.55,.34,.45],["SANUZEL",.68,.55,.32,.45]],
-    4: [["MEHMONXONA",0,0,.52,.52],["OSHXONA",.52,0,.48,.52],["YOTOQ 1",0,.52,.32,.48],["YOTOQ 2",.32,.52,.32,.48],["YOTOQ 3",.64,.52,.36,.48]],
-    5: [["MEHMONXONA",0,0,.5,.5],["OSHXONA",.5,0,.5,.5],["YOTOQ 1",0,.5,.25,.5],["YOTOQ 2",.25,.5,.25,.5],["YOTOQ 3",.5,.5,.25,.5],["YOTOQ 4",.75,.5,.25,.5]]
-  };
-  const blocks = templates[state.rooms] || templates[3];
-  let rooms = "";
-  blocks.forEach((r, i) => {
-    const bx = x + r[1] * w, by = y + r[2] * h, bw = r[3] * w, bh = r[4] * h;
-    rooms += '<g><rect x="' + bx + '" y="' + by + '" width="' + bw + '" height="' + bh + '" fill="' + ["#202d3e","#243348","#29394b"][i % 3] + '" stroke="#71849b" stroke-width="3"/><text x="' + (bx+bw/2) + '" y="' + (by+bh/2-3) + '" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="' + (bw < 95 ? 8 : 10) + '" font-weight="700" fill="#d7e1ed">' + r[0] + '</text><text x="' + (bx+bw/2) + '" y="' + (by+bh/2+13) + '" text-anchor="middle" font-family="DM Sans,sans-serif" font-size="9" fill="#99abc0">' + fmt(est.footprint*r[3]*r[4],1) + ' m²</text></g>';
-  });
-  svg.innerHTML = '<defs><pattern id="planGrid" width="12" height="12" patternUnits="userSpaceOnUse"><path d="M 12 0 L 0 0 0 12" fill="none" stroke="#35465b" stroke-width=".6"/></pattern></defs><rect width="560" height="420" fill="url(#planGrid)" rx="10"/><text x="58" y="23" font-size="9" font-family="DM Sans,sans-serif" font-weight="700" letter-spacing="1.4" fill="#9eafc4">NAMUNAVIY QAVAT REJASI</text><text x="502" y="23" text-anchor="end" font-size="9" font-family="DM Sans,sans-serif" fill="#b3bfd0">' + state.houseWidth + ' × ' + state.houseLength + ' m</text>' + rooms + '<path d="M 58 383 H 502 M 58 379 V 387 M 502 379 V 387" stroke="#8b9f75" stroke-width="1"/><text x="280" y="399" text-anchor="middle" font-size="10" font-family="DM Sans,sans-serif" fill="#708363">' + state.houseWidth + ' m</text><path d="M 521 41 V 363 M 517 41 H 525 M 517 363 H 525" stroke="#8b9f75" stroke-width="1"/><text x="536" y="203" text-anchor="middle" transform="rotate(90 536 203)" font-size="10" font-family="DM Sans,sans-serif" fill="#708363">' + state.houseLength + ' m</text>';
-}
-
-function drawMaterials(est) {
-  const order = ["concrete","brick","rebar","roof","windows","wiring","pipes","finish"];
-  $("#materialList").innerHTML = order.map((key) => {
-    const item = rates[key], q = est.quantities[key];
-    const qty = key === "brick" ? fmt(q,0) + " dona" : key === "rebar" ? fmt(q,0) + " kg" : fmt(q,1) + " " + item.unit;
-    return '<div class="material-row"><div class="material-name"><span class="material-swatch">' + item.icon + '</span><div><span>' + item.name + '</span><small>' + qty + '</small></div></div><label class="price-cell"><span>1 ' + item.unit + ' narxi</span><input type="number" min="0" step="1000" data-price="' + key + '" value="' + item.price + '" aria-label="' + item.name + ' birligi narxi (so‘m)"></label><div class="amount"><span data-total="' + key + '">' + money(est.totals[key]) + '</span><small>jami</small></div></div>';
-  }).join("");
-}
-
-function updateSummary(est) {
-  $("#plotArea").textContent = fmt(est.plotArea,1) + " m²";
-  $("#heroArea").textContent = fmt(est.floorArea,1) + " m²";
-  $("#heroCost").textContent = money(est.total);
-  $("#modelDimensions").textContent = state.houseWidth + " × " + state.houseLength + " m · " + state.floors + " qavat";
-  $("#planDimensions").textContent = fmt(est.floorArea,1) + " m²";
-  $("#summaryArea").textContent = fmt(est.floorArea,1) + " m²";
-  $("#summaryFloors").textContent = state.floors + " qavat";
-  $("#summaryRooms").textContent = (state.rooms === 5 ? "5+" : state.rooms) + " ta";
-  $("#summaryRoof").textContent = fmt(est.roofArea,1) + " m²";
-  $("#summaryCost").textContent = money(est.total);
-  renderUtilities(est);
-}
-
-function mat(color, roughness = .85) {
-  return new THREE.MeshStandardMaterial({ color: color, roughness: roughness });
-}
-function box(group, x,y,z,sx,sy,sz, material, rot = 0) {
-  const m = new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz), material);
-  m.position.set(x,y,z); m.rotation.y = rot; m.castShadow = true; m.receiveShadow = true; group.add(m); return m;
-}
-function addPolygonPrism(group, name, points, thickness, sourceMaterial) {
-  // Build a real sloped roof panel from a planar polygon plus a small vertical thickness.
-  const bottom = points.map(([x, y, z]) => [x, y - thickness, z]);
-  const vertices = [];
-  const tri = (a, b, c) => vertices.push(...a, ...b, ...c);
-  for (let i = 1; i < points.length - 1; i++) tri(points[0], points[i], points[i + 1]);
-  for (let i = 1; i < bottom.length - 1; i++) tri(bottom[0], bottom[i + 1], bottom[i]);
-  for (let i = 0; i < points.length; i++) {
-    const next = (i + 1) % points.length;
-    tri(points[i], bottom[i], bottom[next]);
-    tri(points[i], bottom[next], points[next]);
+  function setBadge(label, state = "") {
+    const badge = $("#aiBadge");
+    badge.textContent = label;
+    badge.dataset.state = state;
   }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute("position", new THREE.BufferAttribute(new Float32Array(vertices), 3));
-  geometry.computeVertexNormals();
-  const panelMaterial = sourceMaterial.clone();
-  panelMaterial.side = THREE.DoubleSide;
-  const mesh = new THREE.Mesh(geometry, panelMaterial);
-  mesh.name = name;
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  group.add(mesh);
-  return mesh;
-}
 
-function addTriangleFace(group, name, points, sourceMaterial) {
-  const geometry = new THREE.BufferGeometry();
-  const vertices = new Float32Array(points.flat());
-  geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
-  geometry.computeVertexNormals();
-  const panelMaterial = sourceMaterial.clone();
-  panelMaterial.side = THREE.DoubleSide;
-  const mesh = new THREE.Mesh(geometry, panelMaterial);
-  mesh.name = name;
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  group.add(mesh);
-  return mesh;
-}
-
-function makeHouse(config) {
-  const g = new THREE.Group();
-  const w = config.width, l = config.length, floors = config.floors;
-  const story = 2.85, wallH = story - .17, top = floors * story;
-  const plaster = mat("#e9e1d3"), side = mat("#b8c1ca"), base = mat("#364355");
-  const frame = mat("#f4ead8"), door = mat("#946544"), floor = mat("#293748");
-  const partition = mat("#63768b"), bed = mat("#c9a26e"), furniture = mat("#b98259");
-  const roof = new THREE.MeshStandardMaterial({ color: "#38485b", roughness: .72, side: THREE.DoubleSide });
-  const darkRoof = new THREE.MeshStandardMaterial({ color: "#222e3c", roughness: .68, side: THREE.DoubleSide });
-  const glass = new THREE.MeshStandardMaterial({ color: "#7bcce4", roughness: .24, transparent: true, opacity: .86 });
-
-  box(g, 0, .07, 0, w + .5, .14, l + .5, base);
-  for (let f = 0; f < floors; f++) {
-    const y0 = f * story;
-    const cy = y0 + .17 + wallH / 2;
-    const t = .18;
-    const frontZ = -l / 2 - .055;
-    const ww = Math.min(1.5, w * .16), wh = 1.0, wy = y0 + 1.65;
-    box(g, 0, y0 + .17, 0, w, .1, l, floor);
-
-    // Four walls and clean, flush facade details for the concept model.
-    box(g, 0, cy, -l / 2 + t / 2, w, wallH, t, plaster);
-    box(g, 0, cy, l / 2 - t / 2, w, wallH, t, side);
-    box(g, -w / 2 + t / 2, cy, 0, t, wallH, l, side);
-    box(g, w / 2 - t / 2, cy, 0, t, wallH, l, plaster);
-
-    // Entry and window accents.
-    box(g, 0, y0 + 1.02, frontZ, Math.min(1.05, w * .12), 1.95, .07, door);
-    box(g, 0, y0 + 2.06, frontZ - .045, Math.min(1.12, w * .125), .08, .09, frame);
-    [-w * .29, w * .31].forEach((wx) => {
-      const windowWidth = Math.min(1.5, w * .16);
-      box(g, wx, wy, frontZ - .025, windowWidth + .16, wh + .16, .075, frame);
-      box(g, wx, wy, frontZ - .07, windowWidth, wh, .08, glass);
-      box(g, wx, wy, frontZ - .12, .045, wh, .025, frame);
-      box(g, wx, wy, frontZ - .12, windowWidth, .045, .025, frame);
-    });
-    [-w * .25, w * .25].forEach((wx) => {
-      box(g, wx, wy, l / 2 + .03, ww, wh, .06, glass);
-      box(g, wx, wy, l / 2 + .065, ww + .10, .06, .065, frame);
-    });
-    [-l * .25, l * .25].forEach((z) => {
-      box(g, -w / 2 - .03, wy, z, .06, wh, Math.min(1.4, l * .15), glass);
-      box(g, w / 2 + .03, wy, z, .06, wh, Math.min(1.4, l * .15), glass);
-    });
-
-    // Interior partition and furniture hints; final room dimensions need architectural review.
-    const ph = wallH * .77;
-    if (config.rooms >= 3) {
-      box(g, -w * .08, y0 + .18 + ph / 2, 0, .10, ph, l * .85, partition);
-      box(g, w * .08, y0 + .18 + ph / 2, l * .08, w * .75, ph, .10, partition);
+  function showMessage(message, isError = false) {
+    const status = $("#errorState");
+    status.hidden = !isError;
+    status.textContent = message;
+    if (isError) {
+      $("#emptyState").hidden = true;
+      $("#loadingState").hidden = true;
+      $("#resultState").hidden = true;
+      setBadge("XATOLIK", "error");
     }
-    if (config.rooms >= 4) box(g, -w * .22, y0 + .18 + ph / 2, l * .20, .10, ph, l * .42, partition);
-    box(g, -w * .27, y0 + .49, l * .25, Math.min(1.8, w * .22), .38, Math.min(2.15, l * .2), bed);
-    box(g, w * .24, y0 + .38, -l * .17, Math.min(1.3, w * .16), .24, Math.min(1, l * .1), furniture);
   }
 
-  // Use the smaller building dimension for the roof span and the longer dimension
-  // for the ridge, so the roof geometry stays correct for either plot orientation.
-  const swapAxes = w > l;
-  const roofW = Math.min(w, l), roofL = Math.max(w, l);
-  const toWorld = ([x, y, z]) => swapAxes ? [-z, y, x] : [x, y, z];
-  const eaveHalfW = roofW / 2 + .38;
-  const eaveHalfL = roofL / 2 + .42;
-  const eaveY = top + .04;
-  const rise = Math.max(1.0, Math.min(2.15, roofW * .20));
-  const ridgeY = top + rise + .04;
-
-  if (config.roofType === "gable") {
-    const front = -roofL / 2 - .015;
-    const rear = roofL / 2 + .015;
-    addTriangleFace(g, "Front gable wall", [
-      toWorld([-roofW / 2, top - .01, front]),
-      toWorld([ roofW / 2, top - .01, front]),
-      toWorld([0, ridgeY - .02, front])
-    ], plaster);
-    addTriangleFace(g, "Rear gable wall", [
-      toWorld([-roofW / 2, top - .01, rear]),
-      toWorld([ roofW / 2, top - .01, rear]),
-      toWorld([0, ridgeY - .02, rear])
-    ], side);
-    addPolygonPrism(g, "Left pitched roof plane", [
-      toWorld([-eaveHalfW, eaveY, -eaveHalfL]),
-      toWorld([0, ridgeY, -eaveHalfL]),
-      toWorld([0, ridgeY, eaveHalfL]),
-      toWorld([-eaveHalfW, eaveY, eaveHalfL])
-    ], .14, roof);
-    addPolygonPrism(g, "Right pitched roof plane", [
-      toWorld([0, ridgeY, -eaveHalfL]),
-      toWorld([eaveHalfW, eaveY, -eaveHalfL]),
-      toWorld([eaveHalfW, eaveY, eaveHalfL]),
-      toWorld([0, ridgeY, eaveHalfL])
-    ], .14, darkRoof);
-    const ridgeStart = toWorld([0, ridgeY + .015, 0]);
-    const ridgeBar = box(g, ridgeStart[0], ridgeStart[1], ridgeStart[2], swapAxes ? roofL + .8 : .12, .12, swapAxes ? .12 : roofL + .8, darkRoof);
-    ridgeBar.name = "Gable roof ridge cap";
-  } else if (config.roofType === "hip") {
-    const ridgeHalfL = Math.max(0, eaveHalfL - eaveHalfW);
-    const ridgeFront = -ridgeHalfL, ridgeRear = ridgeHalfL;
-    addPolygonPrism(g, "Left hip roof plane", [
-      toWorld([-eaveHalfW, eaveY, -eaveHalfL]),
-      toWorld([0, ridgeY, ridgeFront]),
-      toWorld([0, ridgeY, ridgeRear]),
-      toWorld([-eaveHalfW, eaveY, eaveHalfL])
-    ], .14, roof);
-    addPolygonPrism(g, "Right hip roof plane", [
-      toWorld([0, ridgeY, ridgeFront]),
-      toWorld([eaveHalfW, eaveY, -eaveHalfL]),
-      toWorld([eaveHalfW, eaveY, eaveHalfL]),
-      toWorld([0, ridgeY, ridgeRear])
-    ], .14, darkRoof);
-    addPolygonPrism(g, "Front hip roof plane", [
-      toWorld([-eaveHalfW, eaveY, -eaveHalfL]),
-      toWorld([0, ridgeY, ridgeFront]),
-      toWorld([eaveHalfW, eaveY, -eaveHalfL])
-    ], .14, roof);
-    addPolygonPrism(g, "Rear hip roof plane", [
-      toWorld([-eaveHalfW, eaveY, eaveHalfL]),
-      toWorld([eaveHalfW, eaveY, eaveHalfL]),
-      toWorld([0, ridgeY, ridgeRear])
-    ], .14, darkRoof);
-    if (ridgeHalfL > .15) {
-      const cap = box(g, 0, ridgeY + .015, 0, swapAxes ? .12 : ridgeHalfL * 2, .12, swapAxes ? ridgeHalfL * 2 : .12, darkRoof);
-      cap.name = "Hip roof ridge cap";
-    }
-  } else {
-    const flatRoof = box(g, 0, top + .06, 0, w + .76, .20, l + .84, roof);
-    flatRoof.name = "Flat roof slab";
-    box(g, 0, top + .19, 0, w + .5, .07, l + .58, darkRoof).name = "Flat roof edge";
-  }
-  return g;
-}
-
-function createWorld(canvas, hero) {
-  const renderer = new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:"high-performance"});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.7));
-  renderer.outputColorSpace=THREE.SRGBColorSpace;
-  renderer.shadowMap.enabled=true;
-  renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-  const scene=new THREE.Scene(); scene.background=new THREE.Color("#111925"); scene.fog=new THREE.Fog("#111925",35,90);
-  const camera=new THREE.PerspectiveCamera(36,1,.1,160);
-  scene.add(new THREE.HemisphereLight("#ffffff","#708095",2));
-  const sun=new THREE.DirectionalLight("#fff0d8",2.5); sun.position.set(12,20,-8); sun.castShadow=true; sun.shadow.mapSize.set(1024,1024); scene.add(sun);
-  const ground=new THREE.Mesh(new THREE.PlaneGeometry(100,100),mat("#182333")); ground.rotation.x=-Math.PI/2; ground.position.y=-.06; ground.receiveShadow=true; scene.add(ground);
-  const grid=new THREE.GridHelper(50,50,"#2c3a4c","#233044"); grid.position.y=-.045; grid.material.transparent=true; grid.material.opacity=.34; scene.add(grid);
-  const model=new THREE.Group(); scene.add(model);
-  let controls=null;
-  if(!hero){controls=new OrbitControls(camera,canvas);controls.enableDamping=true;controls.dampingFactor=.07;controls.minPolarAngle=.18;controls.maxPolarAngle=Math.PI*.48;controls.target.set(0,1.6,0);}
-  function resize(){const r=canvas.parentElement.getBoundingClientRect();renderer.setSize(Math.max(1,r.width),Math.max(1,r.height),false);camera.aspect=Math.max(1,r.width)/Math.max(1,r.height);camera.updateProjectionMatrix();}
-  function rebuild(c){
-    model.traverse((child) => {
-      if (child.geometry) child.geometry.dispose();
-      if (child.material) {
-        if (Array.isArray(child.material)) child.material.forEach((m) => m.dispose());
-        else child.material.dispose();
-      }
-    });
-    model.clear();
-    model.add(makeHouse(c));
-    const max=Math.max(c.width,c.length), distance=Math.max(19,max*(hero?1.55:1.7));
-    camera.position.set(distance*.92,Math.max(10,max*.85),distance*.9); camera.near=.1;camera.far=200;camera.updateProjectionMatrix();
-    if(controls){controls.target.set(0,c.floors*1.25,0);controls.minDistance=Math.max(8,max*.65);controls.maxDistance=Math.max(42,max*3.2);controls.update();}
-    else camera.lookAt(0,c.floors*1.25,0);
-  }
-  const ro=new ResizeObserver(resize);ro.observe(canvas.parentElement);window.addEventListener("resize",resize);resize();
-  let spin=0;renderer.setAnimationLoop(()=>{if(controls)controls.update();else model.rotation.y=Math.sin((spin+=.002)*.22)*.07;renderer.render(scene,camera);});
-  return {rebuild:rebuild,dispose:()=>{renderer.setAnimationLoop(null);ro.disconnect();window.removeEventListener("resize",resize);if(controls)controls.dispose();renderer.dispose();}};
-}
-
-let heroWorld=null, mainWorld=null;
-function updateAll(rebuildMaterials=true){
-  const est=syncInputs();updateSummary(est);makePlan(est);
-  if(rebuildMaterials)drawMaterials(est);
-  const config={width:state.houseWidth,length:state.houseLength,floors:state.floors,roofType:state.roofType,rooms:state.rooms};
-  if(mainWorld)mainWorld.rebuild(config);
-  if(heroWorld)heroWorld.rebuild({width:Math.min(12,state.houseWidth),length:Math.min(16,state.houseLength),floors:state.floors,roofType:state.roofType,rooms:state.rooms});
-  saveProjectState();
-}
-
-function renderUtilities(est) {
-  if (!est || !est.utilityPoints) return;
-  const points = est.utilityPoints;
-  const display = {
-    lightPoints: String(points.lightingPoints),
-    socketPoints: String(points.socketPoints),
-    switchPoints: String(points.switchPoints),
-    waterPoints: String(points.waterPoints),
-    drainPoints: String(points.drainagePoints),
-    utilityCable: fmt(est.quantities.wiring, 0) + " m",
-    utilityPipes: fmt(est.quantities.pipes, 0) + " m",
-    utilityArea: fmt(est.floorArea, 1) + " m²"
-  };
-  Object.entries(display).forEach(([id, value]) => {
-    const node = document.getElementById(id);
-    if (node) node.textContent = value;
-  });
-}
-
-function saveProjectState() {
-  try {
-    const saved = {
-      ...state,
-      prices: Object.fromEntries(Object.entries(rates).map(([key, item]) => [key, item.price]))
-    };
-    localStorage.setItem("bekiuz-build-project-v1", JSON.stringify(saved));
-  } catch (error) {
-    console.warn("Project settings could not be saved in this browser.", error);
-  }
-}
-
-function loadSavedProject() {
-  try {
-    const raw = localStorage.getItem("bekiuz-build-project-v1");
-    if (!raw) return;
-    const saved = JSON.parse(raw);
-    ["plotWidth", "plotLength", "houseWidth", "houseLength"].forEach((key) => {
-      if (Number.isFinite(Number(saved[key]))) state[key] = Number(saved[key]);
-      const field = document.getElementById(key);
-      if (field) field.value = state[key];
-    });
-    state.floors = clamp(saved.floors, 1, 2);
-    state.rooms = clamp(saved.rooms, 2, 5);
-    state.roofType = ["gable", "hip", "flat"].includes(saved.roofType) ? saved.roofType : "gable";
-    const roofField = document.getElementById("roofType");
-    if (roofField) roofField.value = state.roofType;
-    if (saved.prices && typeof saved.prices === "object") {
-      Object.entries(rates).forEach(([key, item]) => {
-        const value = Number(saved.prices[key]);
-        if (Number.isFinite(value) && value >= 0 && value <= 1000000000) item.price = value;
-      });
-    }
-    $(".segment").forEach((button) => button.classList.toggle("active", Number(button.dataset.floors) === state.floors));
-    $("#roomOptions button").forEach((button) => button.classList.toggle("active", Number(button.dataset.rooms) === state.rooms));
-  } catch (error) {
-    console.warn("Saved project settings could not be loaded.", error);
-  }
-}
-
-function activateView(view){
-  $$(".preview-tab").forEach(b=>{const active=b.dataset.view===view;b.classList.toggle("active",active);b.setAttribute("aria-selected",String(active));});
-  $$(".view-panel").forEach(p=>p.classList.remove("active"));
-  const map={"3d":"#view3d","plan":"#viewPlan","materials":"#viewMaterials","utilities":"#viewUtilities"};$(map[view]).classList.add("active");
-  if(view==="3d")window.dispatchEvent(new Event("resize"));
-}
-let latestAiPlan = null;
-
-function setAiStatus(message, kind = "") {
-  const status = $("#aiStatus");
-  if (!status) return;
-  status.textContent = message;
-  status.dataset.state = kind;
-}
-
-function formatRoofName(type) {
-  return type === "hip" ? "To‘rt nishabli tom" : type === "flat" ? "Yassi tom" : "Ikki nishabli tom";
-}
-
-function renderAiPlan(plan) {
-  latestAiPlan = plan;
-  $("#aiSummary").textContent = plan.summary || "Boshlang‘ich tavsiya tayyor.";
-  const list = $("#aiRecommendations");
-  list.replaceChildren();
-  (Array.isArray(plan.recommendations) ? plan.recommendations : []).forEach((recommendation) => {
-    const item = document.createElement("li");
-    item.textContent = recommendation;
-    list.appendChild(item);
-  });
-
-  const settings = plan.proposedSettings || {};
-  const preview = $("#aiSettingsPreview");
-  preview.replaceChildren();
-  const settingsLabels = [
-    Math.round(Number(settings.houseWidth) * 10) / 10 + " × " + (Math.round(Number(settings.houseLength) * 10) / 10) + " m",
-    Math.round(Number(settings.floors)) + " qavat",
-    (Number(settings.rooms) >= 5 ? "5+" : Math.round(Number(settings.rooms))) + " xona",
-    formatRoofName(settings.roofType)
-  ];
-  settingsLabels.forEach((label) => {
-    const pill = document.createElement("span");
-    pill.className = "ai-setting-pill";
-    pill.textContent = label;
-    preview.appendChild(pill);
-  });
-  $("#aiResult").hidden = false;
-}
-
-async function checkAiConnection() {
-  const badge = $("#aiConnection");
-  if (badge) {
-    badge.textContent = "AI ULANMOQDA";
-    badge.dataset.state = "checking";
-  }
-  try {
-    const response = await fetch(AI_API_BASE + "/health", {
-      headers: { "Accept": "application/json" }
-    });
-    const health = await response.json();
-    if (!response.ok || !health.ok) throw new Error("AI_HEALTH_FAILED");
-    if (!health.configured) {
-      if (badge) { badge.textContent = "AI SOZLANMAGAN"; badge.dataset.state = "error"; }
-      setAiStatus("Bekiuz AI serveri ochiq, lekin Cloudflare Workers AI binding sozlanmagan. Worker sozlamasini tekshirish kerak.", "error");
+  async function checkHealth() {
+    try {
+      const response = await fetch(API_BASE + "/health", { headers: { Accept: "application/json" } });
+      const data = await response.json();
+      if (!response.ok || !data.ok || !data.configured) throw new Error("AI server hali tayyor emas.");
+      setConnection(true, "AI server ulangan");
+      return true;
+    } catch {
+      setConnection(false, "AI server tekshirilmoqda");
       return false;
     }
-    if (badge) { badge.textContent = "AI ULANGAN"; badge.dataset.state = "success"; }
-    setAiStatus("Bekiuz AI serveri bilan aloqa bor. Talablaringizni yozib, uy loyihasi bo‘yicha tavsiya oling.", "success");
-    return true;
-  } catch {
-    if (badge) { badge.textContent = "AI ALOQASI YO‘Q"; badge.dataset.state = "error"; }
-    setAiStatus("Bekiuz AI serveriga ulanish tekshiruvdan o‘tmadi. Worker deploy holati va /api/health manzilini tekshirish kerak.", "error");
-    return false;
-  }
-}
-
-async function requestAiPlan(event) {
-  event.preventDefault();
-  const prompt = $("#aiPrompt").value.trim();
-  if (!prompt) {
-    setAiStatus("Avval uy talablaringizni yozing.", "error");
-    return;
   }
 
-  const button = $("#aiSubmit");
-  const label = $("#aiSubmitLabel");
-  button.disabled = true;
-  label.textContent = "Tahlil qilinmoqda…";
-  $("#aiResult").hidden = true;
-  setAiStatus("Bekiuz AI uy talablaringizni tahlil qilib, loyiha variantini tayyorlayapti…", "");
+  function firstNumber(text, patterns) {
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) {
+        const raw = match.slice(1).find((item) => item !== undefined && item !== "");
+        if (raw !== undefined) {
+          const parsed = Number(String(raw).replace(",", "."));
+          if (Number.isFinite(parsed)) return parsed;
+        }
+      }
+    }
+    return null;
+  }
 
-  const project = {
-    plotWidth: Number($("#plotWidth").value),
-    plotLength: Number($("#plotLength").value),
-    houseWidth: Number($("#houseWidth").value),
-    houseLength: Number($("#houseLength").value),
-    floors: state.floors,
-    rooms: state.rooms,
-    roofType: state.roofType
-  };
+  function parsePromptToFields() {
+    const text = $("#aiPrompt").value.toLowerCase();
+    const width = firstNumber(text, [
+      /(\d+(?:[.,]\d+)?)\s*(?:metr(?:lar)?|m)\s*(?:eni|kengligi|kenglik|width)\b/i,
+      /\b(?:eni|kengligi|kenglik|width)\s*(?:=|:)?\s*(\d+(?:[.,]\d+)?)(?:\s*(?:metr(?:lar)?|m))?\b/i
+    ]);
+    const length = firstNumber(text, [
+      /(\d+(?:[.,]\d+)?)\s*(?:metr(?:lar)?|m)?\s*(?:bo['’ʻ]?yi|uzunligi|length)\b/i,
+      /\b(?:bo['’ʻ]?yi|uzunligi|length)\s*(?:=|:)?\s*(\d+(?:[.,]\d+)?)(?:\s*(?:metr(?:lar)?|m))?\b/i
+    ]);
+    const thickness = firstNumber(text, [
+      /(?:beton(?:i|ning)?|beton\s+plita|plita|qalinligi|qalinlik)[^.\n]{0,48}?(\d+(?:[.,]\d+)?)\s*(?:sm|cm)\b/i,
+      /(\d+(?:[.,]\d+)?)\s*(?:sm|cm)[^.\n]{0,24}?(?:beton|plita)/i
+    ]);
+    const rooms = firstNumber(text, [
+      /\b(\d+)\s*(?:ta\s*)?(?:xonali|xona(?:lar)?)\b/i,
+      /\b(?:xonalar soni|xona soni)\s*(?:=|:)?\s*(\d+)\b/i
+    ]);
+    if (width !== null && width >= 3 && width <= 30) $("#houseWidth").value = String(width);
+    if (length !== null && length >= 3 && length <= 40) $("#houseLength").value = String(length);
+    if (thickness !== null && thickness >= 8 && thickness <= 60) $("#slabThickness").value = String(thickness);
+    if (rooms !== null && rooms >= 2 && rooms <= 8) $("#roomCount").value = String(Math.round(rooms));
+    if (/\b(shifer|шифер)\b/i.test(text)) $("#roofCover").value = "shifer";
+    if (/profnastil|profnastil|профнастил/i.test(text)) $("#roofCover").value = "profnastil";
+    if (/yassi tom|tekis tom|flat roof/i.test(text)) $("#roofType").value = "flat";
+    else if (/to['’ʻ]?rt nishabli|to['’ʻ]?rt tomonli|hip roof/i.test(text)) $("#roofType").value = "hip";
+    else if (/ikki nishabli|ikki tomonli|gable roof/i.test(text)) $("#roofType").value = "gable";
+  }
 
-  try {
-    const response = await fetch(AI_API_BASE + "/plan", {
-      method: "POST",
-      headers: { "content-type": "application/json", "accept": "application/json" },
-      body: JSON.stringify({ prompt, project })
+  function readProject() {
+    return {
+      houseWidth: round(clamp(number("houseWidth", 7), 3, 30), 2),
+      houseLength: round(clamp(number("houseLength", 5), 3, 40), 2),
+      slabThicknessCm: round(clamp(number("slabThickness", 30), 8, 60), 1),
+      wallHeight: round(clamp(number("wallHeight", 2.8), 2, 5), 2),
+      wallThicknessCm: round(clamp(number("wallThickness", 25), 10, 60), 1),
+      floors: 1,
+      rooms: Math.round(clamp(number("roomCount", 3), 2, 8)),
+      doorCount: Math.round(clamp(number("doorCount", 1), 1, 8)),
+      windowCount: Math.round(clamp(number("windowCount", 4), 0, 20)),
+      roofType: ["gable", "hip", "flat"].includes($("#roofType").value) ? $("#roofType").value : "gable",
+      roofCover: $("#roofCover").value === "profnastil" ? "profnastil" : "shifer"
+    };
+  }
+
+  function getFallbackRooms(count) {
+    const names = ["Mehmonxona", "Oshxona", "Yotoqxona", "Yotoqxona 2", "Sanuzel", "Dahliz", "Ish xonasi", "Ombor"];
+    const n = Math.round(clamp(count, 2, 8));
+    if (n === 2) return [
+      { name: names[0], x: 0, y: 0, width: .5, length: 1 },
+      { name: names[2], x: .5, y: 0, width: .5, length: 1 }
+    ];
+    if (n === 3) return [
+      { name: names[0], x: 0, y: 0, width: .5, length: .52 },
+      { name: names[1], x: .5, y: 0, width: .5, length: .52 },
+      { name: names[2], x: 0, y: .52, width: 1, length: .48 }
+    ];
+    if (n === 4) return [
+      { name: names[0], x: 0, y: 0, width: .5, length: .5 },
+      { name: names[1], x: .5, y: 0, width: .5, length: .5 },
+      { name: names[2], x: 0, y: .5, width: .5, length: .5 },
+      { name: names[3], x: .5, y: .5, width: .5, length: .5 }
+    ];
+    if (n === 5) return [
+      { name: names[0], x: 0, y: 0, width: 1 / 3, length: .5 },
+      { name: names[1], x: 1 / 3, y: 0, width: 1 / 3, length: .5 },
+      { name: names[2], x: 2 / 3, y: 0, width: 1 / 3, length: .5 },
+      { name: names[3], x: 0, y: .5, width: .5, length: .5 },
+      { name: names[4], x: .5, y: .5, width: .5, length: .5 }
+    ];
+    const columns = n <= 6 ? 3 : 4;
+    const rows = Math.ceil(n / columns);
+    return Array.from({ length: n }, (_, index) => ({
+      name: names[index] || ("Xona " + (index + 1)),
+      x: (index % columns) / columns,
+      y: Math.floor(index / columns) / rows,
+      width: 1 / columns,
+      length: 1 / rows
+    }));
+  }
+
+  function validRooms(input, count) {
+    if (!Array.isArray(input) || input.length !== count) return getFallbackRooms(count);
+    const rooms = input.map((room) => {
+      if (!room || typeof room !== "object") return null;
+      const x = Number(room.x), y = Number(room.y), width = Number(room.width), length = Number(room.length);
+      const name = typeof room.name === "string" ? room.name.trim().slice(0, 36) : "";
+      if (!name || ![x, y, width, length].every(Number.isFinite)) return null;
+      if (x < 0 || y < 0 || width < .12 || length < .12 || x + width > 1.001 || y + length > 1.001) return null;
+      return { name, x, y, width, length };
     });
-    const contentType = response.headers.get("content-type") || "";
-    if (!contentType.includes("application/json")) {
-      const error = new Error("AI_BACKEND_UNAVAILABLE");
-      error.code = "AI_BACKEND_UNAVAILABLE";
-      throw error;
+    if (rooms.some((room) => !room)) return getFallbackRooms(count);
+    for (let i = 0; i < rooms.length; i += 1) {
+      for (let j = i + 1; j < rooms.length; j += 1) {
+        const a = rooms[i], b = rooms[j];
+        const overlapX = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
+        const overlapY = Math.min(a.y + a.length, b.y + b.length) - Math.max(a.y, b.y);
+        if (overlapX > .025 && overlapY > .025) return getFallbackRooms(count);
+      }
     }
-    const result = await response.json();
-    if (!response.ok) {
-      const error = new Error(result.error || "AI so‘rovi bajarilmadi.");
-      error.code = result.code || "AI_REQUEST_FAILED";
-      throw error;
-    }
-    if (!result.plan || !result.plan.proposedSettings) {
-      throw new Error("AI javobi kutilgan formatda kelmadi. Yana urinib ko‘ring.");
-    }
-    renderAiPlan(result.plan);
-    const badge = $("#aiConnection");
-    if (badge) { badge.textContent = "AI ULANGAN"; badge.dataset.state = "success"; }
-    setAiStatus("Tavsiya tayyor. Parametrlarni qo‘llashdan oldin o‘zingiz ko‘rib chiqing.", "success");
-  } catch (error) {
-    const code = error && error.code ? error.code : "";
-    let message = "AI xizmatiga ulanishda xatolik bo‘ldi. Birozdan keyin qayta urinib ko‘ring.";
-    if (code === "AI_BINDING_NOT_CONFIGURED") {
-      message = "Bekiuz AI serveri mavjud, lekin Workers AI binding hali sozlanmagan.";
-    } else if (code === "AI_DAILY_LIMIT") {
-      message = "Bekiuz AI’ning bugungi bepul limiti tugagan. Kunlik limit yangilangach yana urinib ko‘ring.";
-    } else if (code === "AI_RATE_LIMIT") {
-      message = "Juda ko‘p so‘rov yuborildi. Bir daqiqadan keyin yana urinib ko‘ring.";
-    } else if (code === "AI_BACKEND_UNAVAILABLE" || code === "AI_NETWORK_ERROR" || (error && error instanceof TypeError)) {
-      message = "Bekiuz AI serveridan javob kelmadi. Worker deploy holatini yoki CORS sozlamasini tekshirish kerak.";
-    } else if (error && error.message) {
-      message = error.message;
-    }
-    setAiStatus(message, "error");
-  } finally {
-    button.disabled = false;
-    label.textContent = "AI tavsiyasini olish";
+    const covered = rooms.reduce((sum, room) => sum + room.width * room.length, 0);
+    if (covered < .72 || covered > 1.05) return getFallbackRooms(count);
+    return rooms;
   }
-}
 
-function applyAiPlan() {
-  if (!latestAiPlan || !latestAiPlan.proposedSettings) return;
-  const settings = latestAiPlan.proposedSettings;
-  state.floors = clamp(settings.floors, 1, 2);
-  state.rooms = clamp(settings.rooms, 2, 5);
-  state.roofType = ["gable", "hip", "flat"].includes(settings.roofType) ? settings.roofType : "gable";
-  $("#houseWidth").value = clamp(settings.houseWidth, 4, 30);
-  $("#houseLength").value = clamp(settings.houseLength, 4, 40);
-  $("#roofType").value = state.roofType;
-  $(".segment").forEach((button) => button.classList.toggle("active", Number(button.dataset.floors) === state.floors));
-  $("#roomOptions button").forEach((button) => button.classList.toggle("active", Number(button.dataset.rooms) === state.rooms));
-  updateAll(true);
-  setAiStatus("AI taklif qilgan parametrlar loyihaga qo‘llandi. Endi rejani tekshiring va o‘lchamlarni kerak bo‘lsa sozlang.", "success");
-  $("#planner").scrollIntoView({ behavior: "smooth", block: "start" });
-}
+  function calculateMaterials(project) {
+    const width = project.houseWidth;
+    const length = project.houseLength;
+    const footprint = width * length;
+    const concreteThickness = project.slabThicknessCm / 100;
+    const concreteVolume = footprint * concreteThickness;
+    const concreteTonnes = concreteVolume * 2.4;
+    const concreteOrderVolume = concreteVolume * 1.05;
 
-function setupEvents(){
-  ["plotWidth","plotLength","houseWidth","houseLength"].forEach((id)=>{
-    $("#"+id).addEventListener("input",()=>updateAll(false));
-    $("#"+id).addEventListener("change",()=>updateAll(true));
-  });
-  $$(".segment").forEach(b=>b.addEventListener("click",()=>{state.floors=Number(b.dataset.floors);$$(".segment").forEach(x=>x.classList.toggle("active",x===b));updateAll(true);}));
-  $$("#roomOptions button").forEach(b=>b.addEventListener("click",()=>{state.rooms=Number(b.dataset.rooms);$$("#roomOptions button").forEach(x=>x.classList.toggle("active",x===b));updateAll(true);}));
-  $("#roofType").addEventListener("change",e=>{state.roofType=e.target.value;updateAll(true);});
-  $("#projectForm").addEventListener("submit",e=>{e.preventDefault();updateAll(true);$("#planner").scrollIntoView({behavior:"smooth",block:"start"});});
-  $$(".preview-tab").forEach(b=>b.addEventListener("click",()=>activateView(b.dataset.view)));
-  $("#materialList").addEventListener("input",e=>{
-    if(!e.target.matches("[data-price]"))return;
-    const key=e.target.dataset.price;rates[key].price=clamp(e.target.value,0,1000000000);
-    const est=calculate();updateSummary(est);
-    const total=$('[data-total="'+key+'"]');if(total)total.textContent=money(est.totals[key]);
-    saveProjectState();
-  });
-  $("#resetBtn").addEventListener("click",()=>{
-    Object.assign(state,defaults);["plotWidth","plotLength","houseWidth","houseLength"].forEach(id=>$("#"+id).value=state[id]);$("#roofType").value=state.roofType;
-    Object.keys(rates).forEach(k=>rates[k].price=initialRates[k]);
-    $$(".segment").forEach(b=>b.classList.toggle("active",Number(b.dataset.floors)===state.floors));
-    $$("#roomOptions button").forEach(b=>b.classList.toggle("active",Number(b.dataset.rooms)===state.rooms));
-    updateAll(true);activateView("3d");
-  });
-  $("#downloadBtn").addEventListener("click",()=>window.print());
-  $("#mobileMenu").addEventListener("click",()=>{$(".main-nav").classList.toggle("open");});
-  $(".main-nav a").forEach(a=>a.addEventListener("click",()=>$(".main-nav").classList.remove("open")));
-  const aiForm = $("#aiForm");
-  if (aiForm) aiForm.addEventListener("submit", requestAiPlan);
-  const applyAi = $("#applyAiSettings");
-  if (applyAi) applyAi.addEventListener("click", applyAiPlan);
-  $(".ai-prompt-chip").forEach((button) => button.addEventListener("click", () => {
-    $("#aiPrompt").value = button.dataset.aiPrompt || "";
+    const perimeter = 2 * (width + length);
+    const grossWallArea = perimeter * project.wallHeight;
+    const doorArea = project.doorCount * .9 * 2.1;
+    const windowArea = project.windowCount * 1.2 * 1.2;
+    const openingArea = Math.min(grossWallArea * .8, doorArea + windowArea);
+    const netWallArea = Math.max(0, grossWallArea - openingArea);
+    const wallVolume = netWallArea * (project.wallThicknessCm / 100);
+    const brickWithoutReserve = wallVolume * 394;
+    const brickCount = Math.ceil(brickWithoutReserve * 1.05);
+
+    const overhang = .3;
+    const roofFootprint = (width + overhang * 2) * (length + overhang * 2);
+    const pitch = project.roofType === "flat" ? 3 : project.roofType === "hip" ? 30 : 25;
+    const roofSurface = roofFootprint / Math.cos(pitch * Math.PI / 180);
+    const roofOrderArea = roofSurface * 1.1;
+    const sheetCoverage = project.roofCover === "profnastil" ? 1.8 : 1.6;
+    const sheetCount = Math.ceil(roofOrderArea / sheetCoverage);
+    return {
+      footprint,
+      perimeter,
+      grossWallArea,
+      openingArea,
+      netWallArea,
+      wallVolume,
+      concreteVolume,
+      concreteTonnes,
+      concreteOrderVolume,
+      brickCount,
+      brickWithoutReserve,
+      roofSurface,
+      roofOrderArea,
+      sheetCount,
+      sheetCoverage,
+      concreteDensity: 2.4,
+      brickPerCubicMetre: 394,
+      roofPitchDegrees: pitch
+    };
+  }
+
+  function svgNode(tag, attributes = {}, text = "") {
+    const node = document.createElementNS(NS, tag);
+    for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, String(value));
+    if (text !== "") node.textContent = text;
+    return node;
+  }
+
+  function drawPlan(project, rooms, quantities) {
+    const svg = $("#planSvg");
+    svg.replaceChildren();
+    svg.setAttribute("viewBox", "0 0 720 520");
+    const background = svgNode("rect", { x: 0, y: 0, width: 720, height: 520, fill: "#0f1a28" });
+    svg.append(background);
+    const defs = svgNode("defs");
+    const marker = svgNode("marker", { id: "dimensionArrow", markerWidth: 7, markerHeight: 7, refX: 3.5, refY: 3.5, orient: "auto-start-reverse", markerUnits: "strokeWidth" });
+    marker.append(svgNode("path", { d: "M 0 0 L 7 3.5 L 0 7 z", fill: "#8ba1b9" }));
+    defs.append(marker);
+    const pattern = svgNode("pattern", { id: "planGrid", width: 16, height: 16, patternUnits: "userSpaceOnUse" });
+    pattern.append(svgNode("path", { d: "M 16 0 L 0 0 0 16", fill: "none", stroke: "#26384c", "stroke-width": .8 }));
+    defs.append(pattern);
+    svg.append(defs, svgNode("rect", { x: 0, y: 0, width: 720, height: 520, fill: "url(#planGrid)" }));
+    svg.append(svgNode("text", { x: 26, y: 32, fill: "#9baec3", "font-size": 11, "font-family": "DM Sans, sans-serif", "font-weight": 700, "letter-spacing": 2 }, "BEKIUZ BUILD  /  KONSEPTUAL QAVAT REJASI"));
+
+    const maxWidth = 504, maxLength = 348;
+    const scale = Math.min(maxWidth / project.houseWidth, maxLength / project.houseLength);
+    const planWidth = project.houseWidth * scale;
+    const planHeight = project.houseLength * scale;
+    const x0 = 94 + (maxWidth - planWidth) / 2;
+    const y0 = 90 + (maxLength - planHeight) / 2;
+    const px = (n) => n * scale;
+    const palette = ["#182c40", "#19283a", "#203247", "#1a3042", "#243245", "#1a2d3d", "#203145", "#1c2b3b"];
+
+    svg.append(svgNode("rect", { x: x0, y: y0, width: planWidth, height: planHeight, fill: "#0c1520", stroke: "#edf3fa", "stroke-width": 9, "stroke-linejoin": "miter" }));
+    rooms.forEach((room, index) => {
+      const x = x0 + room.x * planWidth;
+      const y = y0 + room.y * planHeight;
+      const w = room.width * planWidth;
+      const h = room.length * planHeight;
+      svg.append(svgNode("rect", {
+        x: x + 2, y: y + 2, width: Math.max(1, w - 4), height: Math.max(1, h - 4),
+        fill: palette[index % palette.length], stroke: "#c5d3e2", "stroke-width": 3
+      }));
+      const centerX = x + w / 2;
+      const centerY = y + h / 2;
+      const shortLabel = room.name.length > 17 ? room.name.slice(0, 16) + "…" : room.name;
+      const area = project.houseWidth * room.width * project.houseLength * room.length;
+      const labelSize = Math.max(8, Math.min(12, w / Math.max(7, shortLabel.length * 0.65)));
+      svg.append(svgNode("text", {
+        x: centerX, y: centerY - 3, "text-anchor": "middle", fill: "#eef4fb",
+        "font-family": "DM Sans, sans-serif", "font-size": labelSize, "font-weight": 700
+      }, shortLabel));
+      if (w > 62 && h > 45) {
+        svg.append(svgNode("text", {
+          x: centerX, y: centerY + 14, "text-anchor": "middle", fill: "#a4bdd2",
+          "font-family": "DM Sans, sans-serif", "font-size": 9
+        }, fmt(area, 1) + " m²"));
+      }
+    });
+
+    // Schematic windows and the entry gap are visual hints, not construction details.
+    const midX = x0 + planWidth * .5;
+    const midY = y0 + planHeight * .5;
+    const windowLength = Math.min(40, planWidth * .15);
+    svg.append(
+      svgNode("line", { x1: x0 + planWidth * .22, y1: y0 - 5, x2: x0 + planWidth * .22 + windowLength, y2: y0 - 5, stroke: "#7bd7ef", "stroke-width": 5 }),
+      svgNode("line", { x1: x0 + planWidth * .22, y1: y0 + 2, x2: x0 + planWidth * .22 + windowLength, y2: y0 + 2, stroke: "#7bd7ef", "stroke-width": 2 }),
+      svgNode("line", { x1: x0 + planWidth * .68, y1: y0 - 5, x2: x0 + planWidth * .68 + windowLength, y2: y0 - 5, stroke: "#7bd7ef", "stroke-width": 5 }),
+      svgNode("line", { x1: x0 + planWidth * .68, y1: y0 + 2, x2: x0 + planWidth * .68 + windowLength, y2: y0 + 2, stroke: "#7bd7ef", "stroke-width": 2 })
+    );
+    const entryW = Math.min(px(.9), planWidth * .24);
+    const entryX = x0 + planWidth * .5 - entryW / 2;
+    const entryY = y0 + planHeight;
+    svg.append(
+      svgNode("rect", { x: entryX - 3, y: entryY - 4, width: entryW + 6, height: 9, fill: "#0f1a28" }),
+      svgNode("line", { x1: entryX, y1: entryY, x2: entryX + entryW, y2: entryY, stroke: "#ffbf70", "stroke-width": 3 }),
+      svgNode("path", { d: "M " + entryX + " " + entryY + " A " + entryW + " " + entryW + " 0 0 1 " + (entryX + entryW) + " " + entryY, fill: "none", stroke: "#ffbf70", "stroke-width": 1.5, "stroke-dasharray": "4 3" })
+    );
+
+    const topDimY = y0 - 24;
+    svg.append(
+      svgNode("line", { x1: x0, y1: topDimY, x2: x0 + planWidth, y2: topDimY, stroke: "#8ba1b9", "stroke-width": 1.2, "marker-start": "url(#dimensionArrow)", "marker-end": "url(#dimensionArrow)" }),
+      svgNode("text", { x: x0 + planWidth / 2, y: topDimY - 8, "text-anchor": "middle", fill: "#f0f5fa", "font-family": "Space Grotesk, sans-serif", "font-size": 13, "font-weight": 700 }, fmt(project.houseWidth, 2) + " m  ENI"),
+      svgNode("line", { x1: x0 - 27, y1: y0, x2: x0 - 27, y2: y0 + planHeight, stroke: "#8ba1b9", "stroke-width": 1.2, "marker-start": "url(#dimensionArrow)", "marker-end": "url(#dimensionArrow)" }),
+      svgNode("text", { x: x0 - 39, y: y0 + planHeight / 2, transform: "rotate(-90 " + (x0 - 39) + " " + (y0 + planHeight / 2) + ")", "text-anchor": "middle", fill: "#f0f5fa", "font-family": "Space Grotesk, sans-serif", "font-size": 13, "font-weight": 700 }, fmt(project.houseLength, 2) + " m  BO‘YI")
+    );
+    svg.append(
+      svgNode("text", { x: 26, y: 474, fill: "#ffbf70", "font-family": "Space Grotesk, sans-serif", "font-size": 12, "font-weight": 700 }, fmt(quantities.footprint, 2) + " m² · " + project.rooms + " xona"),
+      svgNode("text", { x: 26, y: 495, fill: "#8ca1b7", "font-family": "DM Sans, sans-serif", "font-size": 9 }, "Eshik/deraza belgilari sxematik. Qurilish uchun ishchi chizma emas.")
+    );
+  }
+
+  function roofName(project) {
+    if (project.roofType === "flat") return "Yassi tom";
+    if (project.roofType === "hip") return "To‘rt nishabli tom";
+    return "Ikki nishabli tom";
+  }
+
+  function coverName(project) {
+    return project.roofCover === "profnastil" ? "Profnastil" : "Shifer";
+  }
+
+  function renderRows(project, quantities) {
+    const body = $("#materialsBody");
+    body.replaceChildren();
+    const rows = [
+      ["Beton plita", "5% zaxira bilan", fmt(quantities.concreteOrderVolume, 2) + " m³"],
+      ["Beton og‘irligi", "2.4 t/m³ deb olindi", fmt(quantities.concreteTonnes, 2) + " t"],
+      ["G‘isht", "Netto devor + 5% zaxira", integer(quantities.brickCount) + " dona"],
+      [coverName(project), "10% kesish zaxirasi bilan", integer(quantities.sheetCount) + " list"],
+      ["Tom yuzasi", "Nishab va 30 sm karniz taxmini", fmt(quantities.roofOrderArea, 2) + " m²"],
+      ["Devor hajmi", "Eshik/deraza maydoni chegirildi", fmt(quantities.wallVolume, 2) + " m³"]
+    ];
+    rows.forEach(([material, basis, amount]) => {
+      const tr = document.createElement("tr");
+      [material, basis, amount].forEach((value) => {
+        const td = document.createElement("td");
+        td.textContent = value;
+        tr.append(td);
+      });
+      body.append(tr);
+    });
+  }
+
+  function renderResult(plan, project) {
+    const quantities = calculateMaterials(project);
+    const rooms = validRooms(plan.rooms, project.rooms);
+    lastProject = project;
+    lastPlan = { ...plan, rooms };
+    $("#planSummary").textContent = plan.summary || "AI uy uchun boshlang‘ich konsept tayyorladi.";
+    $("#areaValue").textContent = fmt(quantities.footprint, 2) + " m²";
+    $("#concreteValue").textContent = fmt(quantities.concreteVolume, 2) + " m³";
+    $("#concreteMass").textContent = "taxminan " + fmt(quantities.concreteTonnes, 2) + " tonna";
+    $("#brickValue").textContent = integer(quantities.brickCount);
+    $("#roofValue").textContent = integer(quantities.sheetCount) + " list";
+    $("#roofAreaValue").textContent = coverName(project) + " · " + fmt(quantities.roofOrderArea, 2) + " m²";
+    $("#planDimensions").textContent = fmt(project.houseWidth, 2) + " × " + fmt(project.houseLength, 2) + " m · " + project.rooms + " xona";
+    drawPlan(project, rooms, quantities);
+    renderRows(project, quantities);
+
+    const recList = $("#recommendations");
+    recList.replaceChildren();
+    const recs = Array.isArray(plan.recommendations) ? plan.recommendations.slice(0, 5) : [];
+    if (!recs.length) recs.push("Xona joylashuvini oilaning ehtiyojiga qarab arxitektor bilan tekshiring.");
+    recs.forEach((text) => {
+      const li = document.createElement("li");
+      li.textContent = text;
+      recList.append(li);
+    });
+    const openings = project.doorCount + " ta eshik × 0.9 × 2.1 m; " +
+      project.windowCount + " ta deraza × 1.2 × 1.2 m";
+    const concreteText = "Beton: plita maydoni " + fmt(quantities.footprint, 2) +
+      " m² × " + fmt(project.slabThicknessCm / 100, 2) + " m = " +
+      fmt(quantities.concreteVolume, 2) + " m³. Og‘irlik 2.4 t/m³ zichlik farazi asosida; buyurtma hajmiga 5% zaxira qo‘shilgan.";
+    const brickText = "G‘isht: devor balandligi " + fmt(project.wallHeight, 2) +
+      " m, devor qalinligi " + fmt(project.wallThicknessCm, 0) + " sm; " +
+      openings + ". 250×120×65 mm oddiy g‘isht va qorishma choklari uchun taxminan 394 dona/m³, ustiga 5% zaxira olindi.";
+    const roofText = "Tom: " + roofName(project).toLowerCase() + ", " + coverName(project) +
+      ". Hisobda " + fmt(quantities.roofPitchDegrees, 0) + "° qiyalik, har tomonda 30 sm karniz, 10% kesish zaxirasi va bir list uchun " +
+      fmt(quantities.sheetCoverage, 1) + " m² foydali qoplash maydoni qabul qilindi.";
+    $("#assumptionsText").textContent = concreteText + " " + brickText + " " + roofText;
+
+    $("#errorState").hidden = true;
+    $("#emptyState").hidden = true;
+    $("#loadingState").hidden = true;
+    $("#resultState").hidden = false;
+    setBadge("TAYYOR", "success");
+    setConnection(true, "AI server javob berdi");
+    $("#natija").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function generatePlan(event) {
+    event.preventDefault();
+    $("#errorState").hidden = true;
+    $("#emptyState").hidden = true;
+    $("#resultState").hidden = true;
+    $("#loadingState").hidden = false;
+    setBadge("REJALASHTIRMOQDA");
+    const button = $("#generateBtn");
+    const label = $("#generateLabel");
+    button.disabled = true;
+    label.textContent = "AI ishlayapti…";
+    try {
+      const prompt = $("#aiPrompt").value.trim();
+      const project = readProject();
+      if (!prompt) throw new Error("Avval uy haqidagi talablaringizni yozing.");
+      const response = await fetch(API_BASE + "/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ prompt, project })
+      });
+      const type = response.headers.get("content-type") || "";
+      if (!type.includes("application/json")) {
+        throw new Error("AI serverining yangi versiyasi hali chiqarilmagan. Bekiuz AI Worker’ni deploy qilish kerak.");
+      }
+      const data = await response.json();
+      if (!response.ok || !data.ok) {
+        const error = new Error(data.error || "AI javob qaytarmadi.");
+        error.code = data.code;
+        throw error;
+      }
+      if (!data.plan || !Array.isArray(data.plan.rooms)) {
+        throw new Error("AI xona rejasini kutilgan formatda bermadi. Yana urinib ko‘ring.");
+      }
+      renderResult(data.plan, project);
+    } catch (error) {
+      $("#loadingState").hidden = true;
+      $("#errorState").hidden = false;
+      $("#errorState").textContent = error.message || "AI bilan bog‘lanib bo‘lmadi. Keyinroq urinib ko‘ring.";
+      $("#emptyState").hidden = true;
+      $("#resultState").hidden = true;
+      setBadge("XATOLIK", "error");
+      setConnection(false, "AI so‘rovi bajarilmadi");
+    } finally {
+      button.disabled = false;
+      label.textContent = "AI bilan chizma va hisob chiqarish";
+    }
+  }
+
+  function downloadSvg() {
+    if (!lastPlan || !lastProject) return;
+    const svg = $("#planSvg").cloneNode(true);
+    svg.setAttribute("xmlns", NS);
+    svg.setAttribute("width", "1440");
+    svg.setAttribute("height", "1040");
+    const content = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([content], { type: "image/svg+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "bekiuz-build-qavat-rejasi.svg";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function useExample() {
+    $("#aiPrompt").value = "7 metr eni, 5 metr bo‘yi uy qurmoqchiman. Beton plita qalinligi 30 sm. 3 xona va shifer tom kerak.";
+    parsePromptToFields();
     $("#aiPrompt").focus();
-  }));
-}
-async function init(){
-  loadSavedProject();
-  setupEvents();
-  checkAiConnection();
-  const est=syncInputs();updateSummary(est);makePlan(est);drawMaterials(est);
-  try{
-    THREE = await import("three");
-    const controlsModule = await import("https://cdn.jsdelivr.net/npm/three@0.168.0/examples/jsm/controls/OrbitControls.js");
-    OrbitControls = controlsModule.OrbitControls;
-    heroWorld=createWorld($("#heroCanvas"),true);mainWorld=createWorld($("#modelCanvas"),false);
-    $("#modelLoading").classList.add("hidden");setTimeout(()=>$("#modelLoading")&&$("#modelLoading").remove(),650);
-    updateAll(false);
-  }catch(error){
-    console.error("3D preview initialization failed",error);
-    const loading=$("#modelLoading");if(loading)loading.textContent="3D ko‘rinish uchun internet, WebGL va mos brauzer kerak. Kalkulyator ishlashda davom etadi.";
+    $("#loyiha").scrollIntoView({ behavior: "smooth", block: "start" });
   }
-}
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+
+  $("#aiForm").addEventListener("submit", generatePlan);
+  $("#useExample").addEventListener("click", useExample);
+  $("#editInputsBtn").addEventListener("click", () => $("#loyiha").scrollIntoView({ behavior: "smooth", block: "start" }));
+  $("#downloadSvgBtn").addEventListener("click", downloadSvg);
+  $("#printBtn").addEventListener("click", () => window.print());
+  $("#aiPrompt").addEventListener("input", () => {
+    window.clearTimeout(promptParseTimer);
+    promptParseTimer = window.setTimeout(parsePromptToFields, 240);
+  });
+  $("#aiPrompt").addEventListener("blur", parsePromptToFields);
+  checkHealth();
+})();
